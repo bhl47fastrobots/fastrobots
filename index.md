@@ -1,4 +1,4 @@
-# About Me
+# Ben Liao
 
 ![image](assets/ben_photo.jpg)
 
