@@ -15,4 +15,4 @@ Click on the images to navigate to the lab report!
 
 ## Lab 1
 
-![image](assets/img/lab1_thumbnail.png)
+[![lab1_thumbnail](assets/img/lab1_thumbnail.png)](./lab1_report.html "Lab 1 Report")
