@@ -9,3 +9,10 @@ I am taking this class to learn some state-space control theory, and (in general
 I graduated from UC Berkeley in Fall 2022 with degrees in Electrical Engineering & Computer Science, and Mechanical Engineering.
 
 
+# Lab Reports
+
+Click on the images to navigate to the lab report!
+
+## Lab 1
+
+![image](assets/img/lab1_thumbnail.png)
