@@ -1,6 +1,6 @@
 # Ben Liao
 
-![image](assets/ben_photo.jpg)
+![image](images/ben_photo.jpg)
 
 Hi! I am a first year PhD student in Prof. Khurram Afridi's group, researching power electronics. My current research project focuses on designing a controller for a portion of a capacitive wireless charging system.
 
@@ -15,4 +15,4 @@ Click on the images to navigate to the lab report!
 
 ## Lab 1
 
-[![lab1_thumbnail](assets/img/lab1_thumbnail.png)](./lab1_report.html "Lab 1 Report")
+[![lab1_thumbnail](images/lab1/lab1_thumbnail.png)](./lab1_report.html "Lab 1 Report")

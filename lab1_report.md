@@ -4,7 +4,7 @@ Some text here hooray
 
 ## Header 2
 
-[![sample_video](assets/img/sample_video_thumbnail.png)](https://youtu.be/o_CaY_jDpH4 "Sample Video")
+[![sample_video](images/lab1/sample_video_thumbnail.png)](https://youtu.be/o_CaY_jDpH4 "Sample Video")
 
 # Header 1
 
