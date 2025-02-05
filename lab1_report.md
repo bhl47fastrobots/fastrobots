@@ -56,7 +56,7 @@ Here is a screenshot of the Artemis showing up in the Arduino IDE Boards and Por
 
 I downloaded the "Blink" example from the Arduino examples and ran it. Here is a video of it working:
 
-[![lab1a_temp_sensor](images/lab1/lab1a_temp_sensor.png)](https://youtu.be/tNaCE0wkh1c "Temp Sensor Video")
+[![lab1a_blink](images/lab1/lab1a_blink.png)](https://youtube.com/shorts/i5GIhiIritA?feature=share "Blink Video")
 
 ### Lab 1a, Task 3: Example4_Serial
 
@@ -162,6 +162,7 @@ void loop() {
 `currentMillis` holds the current time as returned by the `millis()` function. `previousMillis` holds the last time that the LED state was changed (high to low, or low to high); this is what creates the blinking effect. `interval` is 1000, so the blinking frequency is 0.5 Hz (on for 1 second, off for 1 second, and so on).
 
 Below is a demo of this code working:
+
 
 
 ### Lab 1b, Task 1: `ECHO` Command
