@@ -163,7 +163,7 @@ void loop() {
 
 Below is a demo of this code working:
 
-
+[![lab1a_c_tone](images/lab1/lab1a_c_tone.png)](https://youtu.be/6Eh03i2UV6Q "C Tone Detector Video")
 
 ### Lab 1b, Task 1: `ECHO` Command
 
