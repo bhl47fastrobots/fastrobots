@@ -16,3 +16,7 @@ Click on the images to navigate to the lab report!
 ## Lab 1
 
 [![lab1_thumbnail](images/lab1/lab1_thumbnail.png)](./lab1_report.html "Lab 1 Report")
+
+## Lab 2
+
+[![lab2_thumbnail](images/lab2/lab2_thumbnail.webp)](./lab2_report.html "Lab 2 Report")
