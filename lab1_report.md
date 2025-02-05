@@ -282,19 +282,309 @@ The resulting output is shown in the screenshot below:
 
 ![get_millis_notif_handler](images/lab1/get_millis_notif_handler.png)
 
+### Lab 1b, Task 5: Data Transfer Rate with Notification Handler
+
+In this task, we were asked to write a loop that sent the `GET_TIME_MILLIS` command as fast as possible and compute the data transfer rate. We used the same notification handler from Task 4, and wrote the following code in the Jupyter notebook to perform the desired actions and calculations:
+
+```python
+t_end = time.time() + 5 # run the loop for 5 seconds
+recvd_msgs = 0 # counter on number of received messages
+
+while time.time() < t_end:
+    ble.send_command(CMD.GET_TIME_MILLIS, "")
+    recvd_msgs += 1
+
+print(recvd_msgs)
+```
+
+Part of the resulting output is shown in the screenshot below:
+
+![notif_handler_data_transfer](images/lab1/notif_handler_data_transfer.png)
+
+The 86 at the bottom of the screenshot is how many messages were received in the allotted time of 5 seconds. Therefore, the effective data transfer rate is 86 * (60/5) = **1056 messages per minute**, or around **18 messages per second**.
+
+### Lab 1b, Task 6: `SEND_TIME_DATA` Command
+
+In this task, we were asked to write a command which did the same thing as task 5, except buffered the sending of the data from the Artemis to the computer until the very end. I created two new commands:
+
+* `GET_TIME_MILLIS_BUF`, which, when received, calls the `millis()` function and stores the value into the next available spot in a global array on the Artemis
+* `SEND_TIME_DATA`, which, when received, goes through the global array and sends all of the stored values one at a time as a string back to the computer, then resets the array for future use
+
+Here is the definition of the global array, which is near the top of the `ble_arduino.ino` file:
+
+```cpp
+// variables for holding times for lab 1b task 6 onward
+const int arr_max_len = 1000;
+unsigned long current_millis_arr[arr_max_len];
+int arr_ix = 0; // for holding current index into array
+```
+
+Here is the code for `GET_TIME_MILLIS_BUF` on the Arduino:
+
+```cpp
+case GET_TIME_MILLIS_BUF:
+
+    // get current time and put it into array, without sending it back to computer
+    if (arr_ix < arr_max_len) {  
+      current_millis_arr[arr_ix] = millis();
+      arr_ix++;
+    }
+    break;
+```
+
+Here is the code for `SEND_TIME_DATA`:
+
+```cpp
+case SEND_TIME_DATA:
+
+    // loop through array, sending each value as a string back to the computer
+    for (int i = 0; i < arr_ix; i++) {
+      sprintf(char_arr, "T:%u", current_millis_arr[i]);
+
+      Serial.println(char_arr);
+
+      tx_estring_value.clear();
+      tx_estring_value.append(char_arr);
+      tx_characteristic_string.writeValue(tx_estring_value.c_str());
+    }
+
+    // reset the array indexer
+    arr_ix = 0;
+
+    break;
+```
+
+To test the code, this loop was written in Python:
+
+```python
+t_end = time.time() + 5 # run the loop for 5 seconds
+recvd_msgs = 0 # counter on number of received messages
+
+while time.time() < t_end:
+    ble.send_command(CMD.GET_TIME_MILLIS_BUF, "")
+    recvd_msgs += 1
+
+print(recvd_msgs)
+
+# receive the messages
+ble.send_command(CMD.SEND_TIME_DATA, "")
+```
+
+A notification handler essentially the same as the one from Task 4/5 received the messages and printed them out. Part of the resulting output is shown in the screenshot below:
+
+![send_time_data](images/lab1/send_time_data.png)
+
+### Lab 1b, Task 7: `GET_TEMP_READINGS` Command
+
+In this task, we were asked to add a second array to hold the current temperature readings, in addition to the timestamps that were recorded in Task 6. I used the same command structure as Task 6, creating two commands:
+
+* `GET_TIME_AND_TEMP_BUF` to record the time and temperatures when received and store them in two global arrays
+* `GET_TEMP_READINGS` to loop through the arrays and send them to the computer in bulk
+
+I added an additional array to the global definitions from Task 6:
+
+```cpp
+// variables for holding times for lab 1b task 6 onward
+const int arr_max_len = 1000;
+unsigned long current_millis_arr[arr_max_len];
+float temps_arr[arr_max_len];                           // <---------- this array
+int arr_ix = 0; // for holding current index into array
+```
+
+Here is the code for `GET_TIME_AND_TEMP_BUF` on the Arduino:
+
+```cpp
+case GET_TIME_AND_TEMP_BUF:
+
+    // get current time and temp put into arrays, without sending it back to computer
+    if (arr_ix < arr_max_len) {  
+      current_millis_arr[arr_ix] = millis();
+      temps_arr[arr_ix] = getTempDegF();  // get computed die temperature in deg F
+      arr_ix++;
+    }
+    break;
+```
+
+Here is the code for `GET_TEMP_READINGS` on the Arduino:
+
+```
+case GET_TEMP_READINGS:
+
+    char buffer[16];
+
+    // loop through array, sending each value as a string back to the computer
+    for (int i = 0; i < arr_ix; i++) {
+      sprintf(char_arr, "T:%u|T:%d.%02d", current_millis_arr[i], (int) temps_arr[i], (int)(temps_arr[i] * 100.0) % 100);
+
+      Serial.println(char_arr);
+
+      tx_estring_value.clear();
+      tx_estring_value.append(char_arr);
+      tx_characteristic_string.writeValue(tx_estring_value.c_str());
+    }
+
+    // reset the array indexer
+    arr_ix = 0;
+
+    break;
+```
+
+In Python, the notification handler had to be modified in order to parse the incoming data into two separate parts: the temperature and the timestamp:
+
+```python
+def task7_notification_handler(uuid, characteristic):
+    s = ble.bytearray_to_string(characteristic)
+    timestamp, temp = s.split('|') # split into the two parts
+    print("timestamp:", timestamp[2:], " temp:", temp[2:], "F") # print to terminal
+
+ble.start_notify(ble.uuid['RX_STRING'], task7_notification_handler)
+```
+
+To test this set of commands, the following loop was written in Python:
+
+```python
+t_end = time.time() + 5 # run the loop for 5 seconds
+recvd_msgs = 0 # counter on number of received messages
+
+while time.time() < t_end:
+    ble.send_command(CMD.GET_TIME_AND_TEMP_BUF, "")
+    recvd_msgs += 1
+
+print(recvd_msgs)
+
+# receive the messages
+ble.send_command(CMD.GET_TEMP_READINGS, "")
+```
+Part of the resulting output is shown in the screenshot below:
+
+![get_temp_readings](images/lab1/get_temp_readings.png)
 
 
+### Lab 1b, Task 8: Discussion of Data Transfer Rates
 
+The first method (Task 5) is good when you want to get the data immediately from the robot for processing on the computer. However, it is about half the speed as the second method.
 
+The second method (Task 6/7) is good when you don't care about getting the data immediately from the robot and instead want the robot to perform a task, compute stuff by itself while it does the task (and log the data), then send the logged data back to the computer for processing and analysis upon completion. It can "effectively" transfer data at a much higher rate than the first method (in the case that I did it, it was about twice as fast, but if you had a task which did not involve calling another command over Bluetooth and just computations onboard the Artemis, I can imagine it being hundreds if not thousands of times faster than the first method).
 
+Since the Artemis board has 384 kB of RAM, and let's say the average data that we send back is a `float` (4 bytes), we can store (very approximately) 384,000 / 4 = 96,000 data points on board the Artemis before sending it back. (In reality, a decent bit lower, as the program itself takes up maybe 20% of the RAM, and there are other things that need to be stored as the program runs as well).
 
+### Lab 1b, Task 9: Effective Data Rate and Overhead
 
+To calculate the effective data rate, we write a loop start at a message size of 5 bytes and go up to a message size of 120 bytes. We send as many messages as possible in 1 second for each message size between 5 and 120 bytes, in steps of 5 bytes. We record how many messages we were able to send, and multiply it by the message size to get the effective data rate in bytes / second.
 
+This required creating a new command called `SEND_REPLY_OF_SIZE` which took one argument: the size of the reply to send back, in bytes. Here is the code for the command in Arduino:
 
+```cpp
+case SEND_REPLY_OF_SIZE:
+    int size_of_reply;
 
+    // Extract the next value from the command string as an integer
+    success = robot_cmd.get_next_value(size_of_reply);
+    if (!success)
+        return;
 
+    // fill buffer with specified number of "data" (just the character 'a')
+    for (i = 0; i < size_of_reply; i++) {
+      buf[i] = 'a';
+    }
+    buf[i] = '\0'; // null terminate
 
+    // send it back
+    tx_estring_value.clear();
+    tx_estring_value.append(buf);
+    tx_characteristic_string.writeValue(tx_estring_value.c_str());
 
+    break;
+```
 
+This is the loop in Python to calculate the effective data rates of the messages:
 
+```python
+size_of_message = list()
+effective_data_rate = list()
 
+for i in range(5, 125, 5):
+    # send commands for the artemis to send replies of size i for 1 second
+    t_end = time.time() + 1 # run the loop for 1 second
+    recvd_msgs = 0 # counter on number of received messages
+    
+    while time.time() < t_end:
+        ble.send_command(CMD.SEND_REPLY_OF_SIZE, str(i))
+        recvd_msgs += 1
+
+    size_of_message.append(i)
+    effective_data_rate.append(recvd_msgs * i)
+    
+    print(i)
+    print(recvd_msgs * i)
+
+print(size_of_message)
+print(effective_data_rate)
+```
+
+Here is a plot of the resulting arrays illustrating the relationship between the message size and the effective data transfer rate (made in MATLAB):
+
+![task9_plot](images/lab1/task9_plot.png)
+
+### Lab 1b, Task 10: Reliability
+
+In this task, we were asked to send data from the Artemis to the computer faster than the maximum rate suggested by Task 9, and use the notification handler to see if the computer could still receive all of the data without dropping any of it.
+
+To do this, I made a new command called `RELIABILITY_TEST` which sent 50 120-byte long messages to the computer as fast as possible. I then made a notification handler in Python to receive the data and print out a count of which messages it received, from 0 to 50.
+
+Here is the code for the `RELIABILITY_TEST` command on the Arduino:
+
+```cpp
+case RELIABILITY_TEST:
+  char buf_to_send[150];
+  
+  // construct buffer with 120 characters in it
+  for (i = 0; i < 120; i++) {
+    buf[i] = 'a';
+  }
+  buf[i] = '\0'; // null terminate
+
+  // construct buffer to send by putting number in front of the buf and send it
+  for (i = 0; i < 50; i++) {
+    sprintf(buf_to_send, "%d|%s", i, buf);
+
+    // send it back
+    tx_estring_value.clear();
+    tx_estring_value.append(buf_to_send);
+    tx_characteristic_string.writeValue(tx_estring_value.c_str());
+  }
+
+  break;
+```
+
+Here is the code to perform the test in Python:
+
+```python
+def task10_notification_handler(uuid, characteristic):
+    s = ble.bytearray_to_string(characteristic)
+    number, data = s.split('|') # split into the two parts
+    print("received msg number:", number) # print to terminal
+
+ble.start_notify(ble.uuid['RX_STRING'], task10_notification_handler)
+
+ble.send_command(CMD.RELIABILITY_TEST, "")
+```
+
+The resulting output is shown in the screenshot below:
+
+![reliability_test](images/lab1/reliability_test.png)
+
+We observe that the computer does not drop any of the data, despite it being sent from the Artemis faster than the suggested maximum rate in Task 9. I believe this is because when the Artemis sends data faster than the computer can process it, the incoming unprocessed data simply fills up a queue on the socket in the computer. The data is taken out of the queue by the Python script at a slower rate than the data is arriving from the Artemis, so the size of the queue grows, but eventually the Python script will get to it and take all of the data out of the queue and process it without dropping any of the data. In an extreme case, one can imagine a scenario where the Artemis sends so much data that the queue becomes full, but this should be hard to do as the amount of available memory on your computer is very large compared to the Artemis.
+
+## Discussion
+
+A big challenge for me was getting the lab to work on my Windows computer; for some reason it kept blue-screening and the data transfer rates were also horrendously low. So I had to re-do the lab on my Macbook and got much better results.
+
+I got familiar with the Python and C++ frameworks we are going to use to communicate wirelessly with the robots in this class, which I'm sure will be very useful throughout the class.
+
+I learned about the limitations of the speed of the Bluetooth communication and different ways to send data back from the Artemis to the computer for processing.
+
+## Acknowledgements
+
+* Sophia Lin (lab partner -- worked together in lab)
+* Steven Sun (Markdown website suggestion)
