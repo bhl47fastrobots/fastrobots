@@ -187,9 +187,110 @@ s = ble.receive_string(ble.uuid['RX_STRING'])
 print(s)
 ```
 
-With the resulting output in the screenshot below:
+The resulting output is shown in the screenshot below:
 
 ![echo](images/lab1/echo.png)
+
+### Lab 1b, Task 2: `SEND_THREE_FLOATS` Command
+
+The `SEND_THREE_FLOATS` command was filled out in the Arduino code to receive three `float`s from the computer and print them to the Serial Monitor in the Arduino IDE:
+
+```cpp
+case SEND_THREE_FLOATS:
+    float float_a, float_b, float_c;
+
+    // Extract the next value from the command string as an float
+    success = robot_cmd.get_next_value(float_a);
+    if (!success)
+        return;
+
+    // Extract the next value from the command string as an float
+    success = robot_cmd.get_next_value(float_b);
+    if (!success)
+        return;
+
+    // Extract the next value from the command string as an float
+    success = robot_cmd.get_next_value(float_c);
+    if (!success)
+        return;
+
+    Serial.print("Three Floats: ");
+    Serial.print(float_a);
+    Serial.print(", ");
+    Serial.print(float_b);
+    Serial.print(", ");
+    Serial.println(float_c);
+
+    break;
+```
+
+To test the command in Python, I used the following code in the Jupyter notebook:
+
+```python
+ble.send_command(CMD.SEND_THREE_FLOATS, "0.1|-1.7|1777.0")
+```
+
+The resulting output is shown in the screenshot below:
+
+![three_floats](images/lab1/three_floats.png)
+
+### Lab 1b, Task 3: `GET_TIME_MILLIS` Command
+
+The `GET_TIME_MILLIS` command was filled out in the Arduino code to get a time using the `millis()` function, convert the `unsigned long` into a string, and append the characters `T:` to the front:
+
+```cpp
+case GET_TIME_MILLIS:
+
+    // get current time and sprintf it into a string
+    currentMillis = millis();
+    sprintf(char_arr, "T:%u", currentMillis);
+
+    tx_estring_value.clear();
+    tx_estring_value.append(char_arr);
+    tx_characteristic_string.writeValue(tx_estring_value.c_str());
+
+    break;
+```
+
+To test the command in Python, I used the following code in the Jupyter notebook:
+
+```python
+ble.send_command(CMD.GET_TIME_MILLIS, "")
+s = ble.receive_string(ble.uuid['RX_STRING'])
+print(s)
+```
+
+The resulting output is shown in the screenshot below:
+
+![get_millis](images/lab1/get_millis.png)
+
+### Lab 1b, Task 4: Notification Handler
+
+In this task, we were asked to write a notification handler to process the result of running the `GET_TIME_MILLIS` (i.e. strip the starting `T:` from the result and print it):
+
+```python
+def task4_notification_handler(uuid, characteristic):
+    s = ble.receive_string(uuid)
+    print(s[2:]) # print only time part of the string
+
+ble.start_notify(ble.uuid['RX_STRING'], task4_notification_handler)
+
+ble.send_command(CMD.GET_TIME_MILLIS, "")
+```
+
+The resulting output is shown in the screenshot below:
+
+![get_millis_notif_handler](images/lab1/get_millis_notif_handler.png)
+
+
+
+
+
+
+
+
+
+
 
 
 
