@@ -56,17 +56,25 @@ Here is a screenshot of the Artemis showing up in the Arduino IDE Boards and Por
 
 I downloaded the "Blink" example from the Arduino examples and ran it. Here is a video of it working:
 
+[![lab1a_temp_sensor](images/lab1/lab1a_temp_sensor.png)](https://youtu.be/tNaCE0wkh1c "Temp Sensor Video")
+
 ### Lab 1a, Task 3: Example4_Serial
 
 I downloaded the "Example4_Serial" example from the Arduino examples and ran it. Here is a video of it working:
+
+[![lab1a_serial_read](images/lab1/lab1a_serial_read.png)](https://youtu.be/jhlCMhnNLHs "Serial Read Video")
 
 ### Lab 1a, Task 4: Example2_analogRead
 
 I downloaded the "Example2_analogRead" example from the Arduino examples and ran it. Here is a video of it working:
 
+[![lab1a_temp_sensor](images/lab1/lab1a_temp_sensor.png)](https://youtu.be/tNaCE0wkh1c "Temp Sensor Video")
+
 ### Lab 1a, Task 5: Example1_MicrophoneOutput
 
 I downloaded the "Example1_MicrophoneOutput" example from the Arduino examples and ran it. Here is a video of it working:
+
+[![lab1a_microphone](images/lab1/lab1a_microphone.png)](https://youtu.be/VDYVDc8w6B8 "Microphone Video")
 
 ### Lab 1a, Task 6: C Tone Detector
 
