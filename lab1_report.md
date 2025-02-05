@@ -46,23 +46,29 @@ On the C++ side, in `ble_arduino.ino`:
 #define BLE_UUID_TEST_SERVICE "1850f67f-72cc-41ef-8c6b-fe981e8c9eda"
 ```
 
-### Lab 1a, Task 1: Blink
+### Lab 1a, Task 1: Connect Artemis to Computer
+
+Here is a screenshot of the Artemis showing up in the Arduino IDE Boards and Port:
+
+![artemis_connecting](images/lab1/artemis_connecting.png)
+
+### Lab 1a, Task 2: Blink
 
 I downloaded the "Blink" example from the Arduino examples and ran it. Here is a video of it working:
 
-### Lab 1a, Task 2: Example4_Serial
+### Lab 1a, Task 3: Example4_Serial
 
 I downloaded the "Example4_Serial" example from the Arduino examples and ran it. Here is a video of it working:
 
-### Lab 1a, Task 3: Example2_analogRead
+### Lab 1a, Task 4: Example2_analogRead
 
 I downloaded the "Example2_analogRead" example from the Arduino examples and ran it. Here is a video of it working:
 
-### Lab 1a, Task 4: Example1_MicrophoneOutput
+### Lab 1a, Task 5: Example1_MicrophoneOutput
 
 I downloaded the "Example1_MicrophoneOutput" example from the Arduino examples and ran it. Here is a video of it working:
 
-### Lab 1a, Task 5: C Tone Detector
+### Lab 1a, Task 6: C Tone Detector
 
 In this task, we were asked to create a program that blinks the Artemis' built-in LED when any "C" tone is played. To do this, I wrote a function that determined whether a given frequency was a C:
 
@@ -151,4 +157,43 @@ Below is a demo of this code working:
 
 
 ### Lab 1b, Task 1: `ECHO` Command
+
+The `ECHO` command was modified in the Arduino code to append the words `"Artemis says -> "` to the front of the received string, then send it back to the computer:
+
+```cpp
+case ECHO:
+
+    // Extract the next value from the command string as a character array
+    success = robot_cmd.get_next_value(char_arr);
+    if (!success)
+        return;
+
+    tx_estring_value.clear();
+    tx_estring_value.append("Artemis says -> ");
+    tx_estring_value.append(char_arr);
+    tx_characteristic_string.writeValue(tx_estring_value.c_str());
+
+    Serial.print("Sent back: ");
+    Serial.println(tx_estring_value.c_str());
+    
+    break;
+```
+
+To test the command in Python, I used the following code in the Jupyter notebook:
+
+```python
+ble.send_command(CMD.ECHO, "Happy Chinese New Year!")
+s = ble.receive_string(ble.uuid['RX_STRING'])
+print(s)
+```
+
+With the resulting output in the screenshot below:
+
+![echo](images/lab1/echo.png)
+
+
+
+
+
+
 
