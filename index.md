@@ -13,10 +13,10 @@ I graduated from UC Berkeley in Fall 2022 with degrees in Electrical Engineering
 
 Click on the images to navigate to the lab report!
 
-## Lab 1
+## Lab 1 - Artemis and Bluetooth
 
 [![lab1_thumbnail](images/lab1/lab1_thumbnail.png)](./lab1_report.html "Lab 1 Report")
 
-## Lab 2
+## Lab 2 - Inertial Measurement Unit (IMU)
 
 [![lab2_thumbnail](images/lab2/lab2_thumbnail.webp)](./lab2_report.html "Lab 2 Report")
