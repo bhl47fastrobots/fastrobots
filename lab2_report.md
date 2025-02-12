@@ -343,7 +343,7 @@ It can be noted that the observed uncalibrated values are already very accurate!
 
 To try to further improve the accelerometer accuracy, we follow the following instructions on an article about two-point calibration on Adafruit's website:
 
-![two_point_calibration](images/lab2/two_point_calibtration_step.png)
+![two_point_calibration](images/lab2/two_point_calibration_step.png)
 
 Applied to the pitch, we have a RawHigh = 90.65, RawLow = -90.58, and RawRange = 181.23. Our ReferenceLow is -90, and ReferenceRange = 180.0. This gives us the following equation:
 
@@ -364,6 +364,40 @@ And similarly, we can plug in measured raw low and high into the equation and ge
 ![roll_equation_raw_low](images/lab2/roll_equation_raw_low.png)
 
 ![roll_equation_raw_high](images/lab2/roll_equation_raw_high.png)
+
+**In summary, the accelerometer by default is already quite accurate and precise! The correction factors are 0.9942 and 0.9932, which are very close to 1.**
+
+### Noise Analysis (FFT)
+
+My Python code for the FFT was heavily based on the example given at [this website](https://pythonnumericalmethods.studentorg.berkeley.edu/notebooks/chapter24.04-FFT-in-Python.html).
+
+I took a sample of 1 second while pitching the IMU up and down. After taking the FFT, I plotted the time domain and frequency domain signals right next to each other:
+
+![pitch_fft_time_domain](images/lab2/pitch_fft_time_domain.png)
+
+We see that the time domain signal has three pitches up and down in one second (about 3 Hz), so we expect to see a peak in the FFT at around those frequencies. Indeed, in the FFT, we see peaks at 3 and 4 Hz, before a steep drop-off down to the base-level white noise from the accelerometer.
+
+Next, I took a sample of 1 second where I hit the table lightly around the IMU and plotted the time domain signal along with the FFT:
+
+![pitch_fft_time_domain_vibration](images/lab2/pitch_fft_time_domain_vibration.png)
+
+We see the table-hitting appear in the time-domain signal with a medium-sized amplitude, and around 5 Hz, but they are very big spikes (meaning that the noise component is also very high). We see that this signal does not appear in the FFT (drowned out by noise). 
+
+### Low-Pass Filter
+
+To implement an effective low-pass filter, let's look at the first 1-second pitch sample I took in the previous section:
+
+![pitch_fft_time_domain](images/lab2/pitch_fft_time_domain.png)
+
+To filter out the noise, we pick a cutoff frequency somewhat above our desired signal frequency, which is 3 Hz in this case. Let's pick 10 Hz to start. From class, we have the formula:
+
+<img src="https://latex.codecogs.com/svg.image?f_c=\frac{1}{2\pi&space;RC}" title="f_c=\frac{1}{2\pi RC}" />
+
+Plugging in and solving for RC, we have RC = 0.0159. Then, to find the value of alpha, we have the following formula from class (with sampling period T = (1/350) = 0.002857 seconds):
+
+<img src="https://latex.codecogs.com/svg.image?\alpha=\frac{T}{T&plus;RC}" title="\alpha=\frac{T}{T+RC}" />
+
+Solving for alpha, we have alpha = 0.152. 
 
 
 
