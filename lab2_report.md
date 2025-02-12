@@ -345,7 +345,7 @@ To try to further improve the accelerometer accuracy, we follow the following in
 
 ![two_point_calibration](images/lab2/two_point_calibration_step.png)
 
-Applied to the pitch, we have a RawHigh = 90.65, RawLow = -90.58, and RawRange = 181.23. Our ReferenceLow is -90, and ReferenceRange = 180.0. This gives us the following equation:
+Applied to the pitch, we have RawHigh = 90.65, RawLow = -90.58, and RawRange = 181.23. Our ReferenceLow is -90, and ReferenceRange is 180.0. This gives us the following equation:
 
 <img src="https://latex.codecogs.com/svg.image?\theta_{corrected}=((\theta_{raw}&plus;90.58)*0.9932)-90.0" title="\theta_{corrected}=((\theta_{raw}+90.58)*0.9932)-90.0" />
 
@@ -355,7 +355,7 @@ And we can see that if we now plug in the measured raw low and measured raw high
 
 ![pitch_equation_raw_high](images/lab2/pitch_equation_raw_high.png)
 
-Similarly, for roll, we have a RawHigh = 90.42, RawLow = -90.63, and RawRange = 181.05. Our ReferenceLow and ReferenceRange are the same as for pitch. This gives us the following equation:
+Similarly, for roll, we have RawHigh = 90.42, RawLow = -90.63, and RawRange = 181.05. Our ReferenceLow and ReferenceRange are the same as for pitch. This gives us the following equation:
 
 <img src="https://latex.codecogs.com/svg.image?\phi_{corrected}=((\phi_{raw}&plus;90.63)*0.9942)-90.0" title="\phi_{corrected}=((\phi_{raw}+90.63)*0.9942)-90.0" />
 
@@ -462,9 +462,131 @@ Taking a 1-second sample and plotting the time domain signal and FFT of both the
 
 We see that the filtered data FFT has less content across the entire spectrum, but the effect is more pronounced above the cutoff frequency. In the time domain signal, we see that the low-pass filter is quite effective at smoothing out the sharp edges of the raw data curve, while also inducing a little bit of phase lag in the signal as expected for a low-pass filter.
 
+## Gyroscope
 
+### Roll, Pitch, Yaw Computation
 
+From the class sides, we can estimate the roll, pitch, and yaw of the IMU using the gyroscope with the following equation:
 
+<img src="https://latex.codecogs.com/svg.image?\theta_{curr}=\theta_{prev}&plus;\dot{\theta}_{reading}\times&space;dt" title="\theta_{curr}=\theta_{prev}+\dot{\theta}_{reading}\times dt" />
+
+Theta, phi, and psi can all be estimated using the same equation; the gyroscope measures the rate of change of these three variables. 
+
+On the Arduino side, I added additional logic in the `if` statement from above to also compute the gyroscope roll/pitch/yaw estimations:
+
+```cpp
+// if want to log processed IMU data, read and store it
+if (log_processed_imu_data && arr_ix < imu_log_size && myICM.dataReady()) {
+    myICM.getAGMT();
+    accel_x_curr = myICM.accX();
+    accel_y_curr = myICM.accY();
+    accel_z_curr = myICM.accZ();
+    gyro_x_curr = myICM.gyrX();
+    gyro_y_curr = myICM.gyrY();
+    gyro_z_curr = myICM.gyrZ();
+    times[arr_ix] = millis();
+
+    // accelerometer calculations to get roll, pitch
+    accel_roll[arr_ix] = (180.0 / M_PI) * atan2(accel_y_curr, accel_z_curr);
+    accel_pitch[arr_ix] = (180.0 / M_PI) * atan2(accel_x_curr, accel_z_curr);
+
+    // gyroscope calculations to get roll, pitch, yaw
+    if (arr_ix == 0) {
+        gyro_roll[0] = accel_roll[0];
+        gyro_pitch[0] = accel_pitch[0];
+        gyro_yaw[0] = 0;
+    } else {
+        dt = float(times[arr_ix] - times[arr_ix - 1]) / 1000.0;
+        gyro_roll[arr_ix] = gyro_roll[arr_ix - 1] + (gyro_x_curr * dt);
+        gyro_pitch[arr_ix] = gyro_pitch[arr_ix - 1] + (gyro_y_curr * dt);
+        gyro_yaw[arr_ix] = gyro_yaw[arr_ix - 1] + (gyro_z_curr * dt);
+    }
+```
+
+Notice that we start the roll and pitch estimations at the accelerometer roll and pitch estimations at that time. Since we have no estimation from the accelerometer for the yaw, we simply set the yaw estimation to 0 degrees at time t = 0. 
+
+As before, I also added these three data series to be returned by the `SEND_PROC_IMU_LOGS` command. This has been ommitted for brevity.
+
+On the Python side, I created a new notification handler, again very similar to the one used for the previous portions. I took data for 5 seconds, and actuated the IMU in such a way to create a large disturbance in yaw, pitch, and then roll. I then plotted the resulting data. Below is the relevant Python code:
+
+```python
+accel_roll = list()
+accel_pitch = list()
+lpf_roll = list()
+lpf_pitch = list()
+gyro_roll = list()
+gyro_pitch = list()
+gyro_yaw = list()
+times = list()
+
+def imu_proc_log_notification_handler_gyro(uuid, characteristic):
+    s = ble.bytearray_to_string(characteristic)
+    tm, accel_roll_curr, accel_pitch_curr, lpf_roll_curr, lpf_pitch_curr, gyro_roll_curr, gyro_pitch_curr, gyro_yaw_curr = s.split('|')
+    
+    accel_roll.append(float(accel_roll_curr))
+    accel_pitch.append(float(accel_pitch_curr))
+    
+    lpf_roll.append(float(lpf_roll_curr))
+    lpf_pitch.append(float(lpf_pitch_curr))
+
+    gyro_roll.append(float(gyro_roll_curr))
+    gyro_pitch.append(float(gyro_pitch_curr))
+    gyro_yaw.append(float(gyro_yaw_curr))
+    
+    times.append(int(tm))
+
+ble.start_notify(ble.uuid['RX_STRING'], imu_proc_log_notification_handler_gyro)
+
+# log data for some number of seconds
+log_data_for_time = 5;
+
+ble.send_command(CMD.START_PROC_IMU_LOG, "");
+time.sleep(log_data_for_time);
+ble.send_command(CMD.STOP_PROC_IMU_LOG, "");
+
+# clear the lists, then send command to get data back
+accel_roll.clear()
+accel_pitch.clear()
+lpf_roll.clear()
+lpf_pitch.clear()
+gyro_roll.clear()
+gyro_pitch.clear()
+gyro_yaw.clear()
+times.clear()
+
+ble.send_command(CMD.SEND_PROC_IMU_LOGS, "");
+
+# Convert all the data in the lists to floats and ints; subtract first time from times to get 0-indexed time
+first_time = int(times[0])
+
+for i in range(len(times)):
+    times[i] = int(times[i])
+    times[i] -= first_time
+    times[i] /= 1000.0 # convert to seconds
+    
+# Make a plot
+plt.plot(times, gyro_roll, label = "Gyro Roll")
+plt.plot(times, gyro_pitch, label = "Gyro Pitch")
+plt.plot(times, gyro_yaw, label = "Gyro Yaw")
+plt.xlabel("Time (ms)")
+plt.ylabel("Gyroscope Estimations")
+plt.legend()
+plt.show()
+```
+
+Below is the resulting plot, showing the gyroscope estimation. It is clear the gyroscope is able to detect the three disturbances in yaw, pitch, and roll; however, it the gyroscope drift is also quite significant, especially at the end of the sampling time.
+
+![gyro_roll_pitch_yaw_working](images/lab2/gyro_roll_pitch_yaw_working.png)
+
+### Comparison with Accelerometer
+
+We can only really properly compare the pitch and roll estimations between the accelerometer and gyroscope, so from this point forward in the lab, we will ignore the yaw estimation from the gyroscope.
+
+Here are plots of the accelerometer, gyroscope, and low-pass-filtered accelerometer data for roll (top) and pitch (bottom) over 5 seconds:
+
+![roll_pitch_comparison](images/lab2/roll_pitch_comparison.png)
+
+Note that the accelerometer readings does not exhibit drift over time, but is fairly noisy with large spikes. The gyroscope readings are much smoother and less noisy, but do exhibit quite some drift over time.
 
 
 
