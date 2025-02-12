@@ -163,7 +163,9 @@ void loop() {
 
 Below is a demo of this code working:
 
-[![lab1a_c_tone](images/lab1/lab1a_c_tone.png)](https://youtu.be/6Eh03i2UV6Q "C Tone Detector Video")
+<iframe width="560" height="315" src="https://www.youtube.com/embed/6Eh03i2UV6Q?si=27p5jDZd-1GJ32nF" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+<!-- [![lab1a_c_tone](images/lab1/lab1a_c_tone.png)](https://youtu.be/6Eh03i2UV6Q "C Tone Detector Video") -->
 
 ### Lab 1b, Task 1: `ECHO` Command
 
