@@ -249,9 +249,95 @@ def imu_log_notification_handler(uuid, characteristic):
 
 ## Accelerometer
 
-First, we got the raw data values 
+To compute the roll and pitch angles in degrees, we can use the accelerometer's ability to detect gravity and some trigonometry on the raw X, Y, and Z axes data. The measured X acceleration, Y acceleration, and Z acceleration are related to the roll (phi) and pitch (theta) angles (in degrees), by the following equations:
 
-<img src="https://latex.codecogs.com/svg.image?\theta=atan2(a_x,x_z)" title="\theta=atan2(a_x,x_z)" />
+<img src="https://latex.codecogs.com/svg.image?\theta=\frac{180}{\pi}atan2(a_x,x_z)" title="\theta=\frac{180}{\pi}atan2(a_x,x_z)" />
+
+<img src="https://latex.codecogs.com/svg.image?\phi=\frac{180}{\pi}atan2(a_y,x_z)" title="\phi=\frac{180}{\pi}atan2(a_y,x_z)" />
+
+First, we take compute the roll and pitch measurements at -90, 0, and 90 degrees. I implemented three more commands: `START_PROC_IMU_LOG`, `STOP_PROC_IMU_LOG`, and `SEND_PROC_IMU_LOGS`. These commands work in the exact same way as the `START_IMU_LOG`, `STOP_IMU_LOG` and `SEND_IMU_LOGS` commands implemented in the previous section: the first two set a flag to start and stop logging data, and the third sends the logged data back.
+
+In the Arduino main loop, I added another `if` statement which implements the above equations and inserts the result into the global arrays:
+
+```cpp
+// if want to log processed IMU data, read and store it
+if (log_processed_imu_data && arr_ix < imu_log_size && myICM.dataReady()) {
+    myICM.getAGMT();
+    accel_x_curr = myICM.accX();
+    accel_y_curr = myICM.accY();
+    accel_z_curr = myICM.accZ();
+    gyro_x_curr = myICM.gyrX();
+    gyro_y_curr = myICM.gyrY();
+    gyro_z_curr = myICM.gyrZ();
+    times[arr_ix] = millis();
+
+    // perform calculations to get roll, pitch
+    accel_roll[arr_ix] = (180.0 / M_PI) * atan2(accel_y_curr, accel_z_curr);
+    accel_pitch[arr_ix] = (180.0 / M_PI) * atan2(accel_x_curr, accel_z_curr);
+
+    arr_ix++;
+}
+```
+
+On the Python side, I wrote a new notification handler, very similar to the one used in the previous section, and used it to record data for 0.5 seconds while I held the IMU against a box in a particular orientation:
+
+```python
+roll = list()
+pitch = list()
+times = list()
+def imu_proc_log_notification_handler(uuid, characteristic):
+    s = ble.bytearray_to_string(characteristic)
+    tm, roll_curr, pitch_curr = s.split('|')
+    roll.append(float(roll_curr))
+    pitch.append(float(pitch_curr))
+    times.append(int(tm))
+
+ble.start_notify(ble.uuid['RX_STRING'], imu_proc_log_notification_handler)
+
+# log data for some number of seconds
+log_data_for_time = 0.5;
+
+ble.send_command(CMD.START_PROC_IMU_LOG, "");
+time.sleep(log_data_for_time);
+ble.send_command(CMD.STOP_PROC_IMU_LOG, "");
+
+# clear the lists, then send command to get data back
+roll.clear()
+pitch.clear()
+times.clear()
+
+ble.send_command(CMD.SEND_PROC_IMU_LOGS, "");
+
+print(np.average(roll))
+
+print(np.average(pitch))
+```
+
+Below are the results for the screenshots:
+
+* 0 degrees pitch and 0 degrees roll:
+
+![0_pitch_roll](images/lab2/accel_uncalib_0_pitch_roll.png)
+
+* +90 degrees pitch:
+
+![pos_90_pitch](images/lab2/accel_uncalib_pos90_pitch.png)
+
+* -90 degrees pitch:
+
+![neg_90_pitch](images/lab2/accel_uncalib_neg90_pitch.png)
+
+* +90 degrees roll:
+
+![pos_90_roll](images/lab2/accel_uncalib_pos90_roll.png)
+
+* -90 degrees roll:
+
+![neg_90_roll](images/lab2/accel_uncalib_neg90_roll.png)
+
+It can be noted that the observed uncalibrated values are already very accurate!
+
+
 
 
 
