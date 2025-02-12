@@ -399,6 +399,69 @@ Plugging in and solving for RC, we have RC = 0.0159. Then, to find the value of 
 
 Solving for alpha, we have alpha = 0.152. 
 
+On the Arduino side, I added the low-pass filter computation in the same `if` statement where I am computing the roll and pitch values:
+
+```cpp
+// if want to log processed IMU data, read and store it
+if (log_processed_imu_data && arr_ix < imu_log_size && myICM.dataReady()) {
+    myICM.getAGMT();
+    accel_x_curr = myICM.accX();
+    accel_y_curr = myICM.accY();
+    accel_z_curr = myICM.accZ();
+    gyro_x_curr = myICM.gyrX();
+    gyro_y_curr = myICM.gyrY();
+    gyro_z_curr = myICM.gyrZ();
+    times[arr_ix] = millis();
+
+    // perform calculations to get roll, pitch
+    accel_roll[arr_ix] = (180.0 / M_PI) * atan2(accel_y_curr, accel_z_curr);
+    accel_pitch[arr_ix] = (180.0 / M_PI) * atan2(accel_x_curr, accel_z_curr);
+
+    //  *************** low-pass filter implementation **************** //
+    if (arr_ix == 0) {
+        lpf_accel_roll[0] = accel_roll[arr_ix];
+        lpf_accel_pitch[0] = accel_pitch[arr_ix];
+    } else {
+        lpf_accel_roll[arr_ix] = accel_alpha * (accel_roll[arr_ix]) + (1.0 - accel_alpha) * (lpf_accel_roll[arr_ix - 1]);
+        lpf_accel_pitch[arr_ix] = accel_alpha * (accel_pitch[arr_ix]) + (1.0 - accel_alpha) * (lpf_accel_pitch[arr_ix - 1]);
+    }
+
+    arr_ix++;
+}
+```
+
+I added the newly computed values to be returned by the `SEND_PROC_IMU_LOGS` command:
+
+```cpp
+/*
+ * This command tells the Artemis to send back all processed IMU data and reset the logging arrays
+ */
+case SEND_PROC_IMU_LOGS:
+      // construct string to send back to computer and send back
+      for (int i = 0; i < arr_ix; i++) {
+          sprintf(char_arr, "%u|%d.%02d|%d.%02d|%d.%02d|%d.%02d", times[i],
+                                                      (int) accel_roll[i], abs((int) (accel_roll[i] * 100.0) % 100), 
+                                                      (int) accel_pitch[i], abs((int) (accel_pitch[i] * 100.0) % 100),
+                                                      (int) lpf_accel_roll[i], abs((int) (lpf_accel_roll[i] * 100.0) % 100),
+                                                      (int) lpf_accel_pitch[i], abs((int) (lpf_accel_pitch[i] * 100.0) % 100));
+
+          tx_estring_value.clear();
+          tx_estring_value.append(char_arr);
+          tx_characteristic_string.writeValue(tx_estring_value.c_str());
+      }
+
+      // reset the array index
+      arr_ix = 0;
+
+      break;
+```
+
+Taking a 1-second sample and plotting the time domain signal and FFT of both the raw and filtered data on top of each other, we obtain the following figure:
+
+![pitch_fft_with_lpf](images/lab2/pitch_fft_with_lpf.png)
+
+We see that the filtered data FFT has less content across the entire spectrum, but the effect is more pronounced above the cutoff frequency. In the time domain signal, we see that the low-pass filter is quite effective at smoothing out the sharp edges of the raw data curve, while also inducing a little bit of phase lag in the signal as expected for a low-pass filter.
+
 
 
 
