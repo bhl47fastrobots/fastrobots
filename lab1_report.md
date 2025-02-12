@@ -62,19 +62,19 @@ I downloaded the "Blink" example from the Arduino examples and ran it. Here is a
 
 I downloaded the "Example4_Serial" example from the Arduino examples and ran it. Here is a video of it working:
 
-[![lab1a_serial_read](images/lab1/lab1a_serial_read.png)](https://youtu.be/jhlCMhnNLHs "Serial Read Video")
+<iframe width="560" height="315" src="https://www.youtube.com/embed/jhlCMhnNLHs?si=Y15tl5IdoZZ6akw6" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Lab 1a, Task 4: Example2_analogRead
 
 I downloaded the "Example2_analogRead" example from the Arduino examples and ran it. Here is a video of it working:
 
-[![lab1a_temp_sensor](images/lab1/lab1a_temp_sensor.png)](https://youtu.be/tNaCE0wkh1c "Temp Sensor Video")
+<iframe width="560" height="315" src="https://www.youtube.com/embed/tNaCE0wkh1c?si=Mv7yPRt8qwqfwsj-" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Lab 1a, Task 5: Example1_MicrophoneOutput
 
 I downloaded the "Example1_MicrophoneOutput" example from the Arduino examples and ran it. Here is a video of it working:
 
-[![lab1a_microphone](images/lab1/lab1a_microphone.png)](https://youtu.be/VDYVDc8w6B8 "Microphone Video")
+<iframe width="560" height="315" src="https://www.youtube.com/embed/VDYVDc8w6B8?si=rTaDmEozqryyUOT-" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Lab 1a, Task 6: C Tone Detector
 
@@ -164,8 +164,6 @@ void loop() {
 Below is a demo of this code working:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/6Eh03i2UV6Q?si=27p5jDZd-1GJ32nF" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-<!-- [![lab1a_c_tone](images/lab1/lab1a_c_tone.png)](https://youtu.be/6Eh03i2UV6Q "C Tone Detector Video") -->
 
 ### Lab 1b, Task 1: `ECHO` Command
 

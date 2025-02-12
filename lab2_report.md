@@ -16,13 +16,13 @@ Accelerometer demo video:
 
 * Notice that the three sensor value traces oscillate around their steady-state value as I shake the breakout board along the corresponding axis.
 
-[![lab2_accel_demo](images/lab2/accel_demo.png)](https://youtu.be/Kcku1Q7TimA "Accelerometer Demo Video")
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Kcku1Q7TimA?si=2-LYz0azjVgGm74o" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Gyroscope demo video:
 
 * Notice that the gyroscope sensor values (the second group of three numbers) oscillate between approximately +250 and -250 when I rotate the breakout board along the corresponding axis. I demonstrate the IMU functionality from the first column to the third column.
 
-[![lab2_gyro_demo](images/lab2/gyro_demo.png)](https://youtu.be/TDgxyGB8UOc "Gyroscope Demo Video")
+<iframe width="560" height="315" src="https://www.youtube.com/embed/TDgxyGB8UOc?si=vS6XYfSuvROrQPaX" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### `AD0_VAL` Discussion
 
@@ -588,26 +588,113 @@ Here are plots of the accelerometer, gyroscope, and low-pass-filtered accelerome
 
 Note that the accelerometer readings does not exhibit drift over time, but is fairly noisy with large spikes. The gyroscope readings are much smoother and less noisy, but do exhibit quite some drift over time.
 
+### Effect of Sampling Frequency
 
+We introduce a delay into the loop to decrease the sampling frequency. I chose 10 ms, to get the frequency down to about 100 Hz. Doing the same test and plotting the accelerometer, gyroscope, and low-pass-filtered accelerometer data for roll (top) and pitch (bottom) over 5 seconds, we obtain the following:
 
+![roll_pitch_comparison_low_sample_f](images/lab2/roll_pitch_comparison_low_sample_f.png)
 
+It is quite clear that lowering the sampling frequency decreases the drift in the gyroscope, but does make the data more coarse/jagged and the accelerometer data marginally more noisy.
 
+### Complementary Filter
 
+Using the equation from the slides, we can combine the readings from the filtered accelerometer and the gyroscope to get a more accurate and less noisy estimate of the roll and pitch angles. The equation is:
 
+<img src="https://latex.codecogs.com/svg.image?\theta_{curr}=\theta_{accel}\times\alpha&plus;(\theta_{prev}&plus;\dot{\theta}_{gyro}\times&space;dt)\times(1-\alpha)" title="\theta_{curr}=\theta_{accel}\times\alpha+(\theta_{prev}+\dot{\theta}_{gyro}\times dt)\times(1-\alpha)" />
 
+This alpha is chosen between 0 and 1, and is a measure of how much we want to trust the accelerometer relative to the gyroscope; a value closer to 1 trusts the accelerometer more, and a value closer to 0 trusts the gyroscope more.
 
+I chose a value of **alpha = 0.001**. From the way that the formula is constructed, the accelerometer has an outsize impact on the value of the complementary filter. I want the complementary filter value to mostly track the gyroscope value, but use the accelerometer data to get rid of the steady-state error. It turns out that picking a tiny alpha is the key to getting the complementary filter value to behave this way.
 
+I implemented it by adding additional logic in the `if` statement in the main loop where I calculated the other processed IMU data:
 
+```cpp
+// if want to log processed IMU data, read and store it
+if (log_processed_imu_data && arr_ix < imu_log_size && myICM.dataReady()) {
+    myICM.getAGMT();
+    accel_x_curr = myICM.accX();
+    accel_y_curr = myICM.accY();
+    accel_z_curr = myICM.accZ();
+    gyro_x_curr = myICM.gyrX();
+    gyro_y_curr = myICM.gyrY();
+    gyro_z_curr = myICM.gyrZ();
+    times[arr_ix] = millis();
 
+    // accelerometer calculations to get roll, pitch
+    accel_roll[arr_ix] = (180.0 / M_PI) * atan2(accel_y_curr, accel_z_curr);
+    accel_pitch[arr_ix] = (180.0 / M_PI) * atan2(accel_x_curr, accel_z_curr);
 
+    // gyroscope calculations to get roll, pitch, yaw
+    if (arr_ix == 0) {
+        gyro_roll[0] = accel_roll[0];
+        gyro_pitch[0] = accel_pitch[0];
+        gyro_yaw[0] = 0;
+    } else {
+        dt = float(times[arr_ix] - times[arr_ix - 1]) / 1000.0;
+        gyro_roll[arr_ix] = gyro_roll[arr_ix - 1] + (gyro_x_curr * dt);
+        gyro_pitch[arr_ix] = gyro_pitch[arr_ix - 1] + (-1.0 * gyro_y_curr * dt); // negate here to match accelerometer
+        gyro_yaw[arr_ix] = gyro_yaw[arr_ix - 1] + (gyro_z_curr * dt);
+    }
 
+    // low-pass filter implementation
+    if (arr_ix == 0) {
+        lpf_accel_roll[0] = accel_roll[arr_ix];
+        lpf_accel_pitch[0] = accel_pitch[arr_ix];
+    } else {
+        lpf_accel_roll[arr_ix] = accel_alpha * (accel_roll[arr_ix]) + (1.0 - accel_alpha) * (lpf_accel_roll[arr_ix - 1]);
+        lpf_accel_pitch[arr_ix] = accel_alpha * (accel_pitch[arr_ix]) + (1.0 - accel_alpha) * (lpf_accel_pitch[arr_ix - 1]);
+    }
 
+    // complementary filter implementation
+    if (arr_ix == 0) {
+        comp_roll[0] = lpf_accel_roll[arr_ix];
+        comp_pitch[0] = lpf_accel_pitch[arr_ix];
+    } else {
+        comp_roll[arr_ix] = comp_alpha * lpf_accel_roll[arr_ix] +
+                             (1.0 - comp_alpha) * (comp_roll[arr_ix - 1] + gyro_x_curr * dt);
+        comp_pitch[arr_ix] = comp_alpha * lpf_accel_pitch[arr_ix] +
+                             (1.0 - comp_alpha) * (comp_pitch[arr_ix - 1] + -1.0 * gyro_y_curr * dt);
+    }
+    arr_ix++;
+}
+```
 
+I added the complementary filter data arrays to the `SEND_PROC_IMU_LOGS` command as before; again they are ommitted for the sake of brevity. 
 
+The plot of the filter output is shown in the figure below:
 
+![complementary_filter](images/lab2/complementary_filter.png)
 
+**We can see that the complementary filter follows the gyroscope signal and rejects the spurious accelerometer deviations, while also not exhibiting the drift that is present in the gyroscope signal!**
 
+To test the limits of the complementary filter, I spun the IMU fully around the roll axis. The figure below shows the resulting data:
 
+![complementary_filter_limit](images/lab2/complementary_filter_limit.png)
 
+We can see that when the angle reaches 180 degrees, the accelerometer estimate wraps around to -180 degrees and starts to pull the complementary filter output away from the desired reading rapidly, meaning that the filter is no longer accurate past that point. Thus, the range of the filter is +/- 180 degrees in both roll and pitch (at least in this current implementation).
 
+It may be possible to implement some sort of wrapping tracking algorithm in the accelerometer that would give the complementary filter infinite range, but that is out of scope for this lab.
+
+Finally, I tested the vibration rejection of the complementary filter. I rotated the IMU quickly back and forth about the roll axis, resulting in the following plot:
+
+![complementary_filter_vibration_reject](images/lab2/complementary_filter_vibration_reject.png)
+
+**We can see that the complementary filter rejects almost all of the high-amplitude noise on the accelerometer estimates, while also not exhibiting drift that is present in the gyroscoep readings!**
+
+## Stunt
+
+Below is a video of me performing some stunts with the robot:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/YjLqX2YB1C8?si=-zYf5WvJQRiF-m1d" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+## Acknowledgements
+
+* Sophia Lin (lab partner)
+* Steven Sun (suggesting that I work on the Sample Data section first, helping me with FFT code)
+* Jeffery Cai (helping to check gyroscope and FFT code)
+* Adrienne Yoon (helping with setting up the stunt and answering some questions about the filter and gyroscope code)
+* Evan Leong (giving me some batteries to record the stunt)
+* [This website](https://pythonnumericalmethods.studentorg.berkeley.edu/notebooks/chapter24.04-FFT-in-Python.html) for a `numpy` FFT tutorial
+* [This website](https://editor.codecogs.com/) for embedding equations in Markdown
+* [This website](https://vanhunteradams.com/Pico/ReactionWheel/Complementary_Filters.html) for a tutorial on tuning complimentary filters and what you want to look for
 
