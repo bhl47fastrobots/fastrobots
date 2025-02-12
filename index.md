@@ -20,3 +20,7 @@ Click on the images to navigate to the lab report!
 ## Lab 2 - Inertial Measurement Unit (IMU)
 
 [![lab2_thumbnail](images/lab2/lab2_thumbnail.webp)](./lab2_report.html "Lab 2 Report")
+
+## Lab 3 - Time of Flight (ToF) Sensors
+
+[![lab3_thumbnail](images/lab3/lab3_thumbnail.jpg)](./lab3_report.html "Lab 3 Report")
