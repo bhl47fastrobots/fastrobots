@@ -249,6 +249,8 @@ def imu_log_notification_handler(uuid, characteristic):
 
 ## Accelerometer
 
+### Roll and Pitch Computation
+
 To compute the roll and pitch angles in degrees, we can use the accelerometer's ability to detect gravity and some trigonometry on the raw X, Y, and Z axes data. The measured X acceleration, Y acceleration, and Z acceleration are related to the roll (phi) and pitch (theta) angles (in degrees), by the following equations:
 
 <img src="https://latex.codecogs.com/svg.image?\theta=\frac{180}{\pi}atan2(a_x,x_z)" title="\theta=\frac{180}{\pi}atan2(a_x,x_z)" />
@@ -336,6 +338,34 @@ Below are the results for the screenshots:
 ![neg_90_roll](images/lab2/accel_uncalib_neg90_roll.png)
 
 It can be noted that the observed uncalibrated values are already very accurate!
+
+### Two-Point Calibration
+
+To try to further improve the accelerometer accuracy, we follow the following instructions on an article about two-point calibration on Adafruit's website:
+
+![two_point_calibration](images/lab2/two_point_calibtration_step.png)
+
+Applied to the pitch, we have a RawHigh = 90.65, RawLow = -90.58, and RawRange = 181.23. Our ReferenceLow is -90, and ReferenceRange = 180.0. This gives us the following equation:
+
+<img src="https://latex.codecogs.com/svg.image?\theta_{corrected}=((\theta_{raw}&plus;90.58)*0.9932)-90.0" title="\theta_{corrected}=((\theta_{raw}+90.58)*0.9932)-90.0" />
+
+And we can see that if we now plug in the measured raw low and measured raw high into the equation, we get exactly +90 degrees and -90 degrees out:
+
+![pitch_equation_raw_low](images/lab2/pitch_equation_raw_low.png)
+
+![pitch_equation_raw_high](images/lab2/pitch_equation_raw_high.png)
+
+Similarly, for roll, we have a RawHigh = 90.42, RawLow = -90.63, and RawRange = 181.05. Our ReferenceLow and ReferenceRange are the same as for pitch. This gives us the following equation:
+
+<img src="https://latex.codecogs.com/svg.image?\phi_{corrected}=((\phi_{raw}&plus;90.63)*0.9942)-90.0" title="\phi_{corrected}=((\phi_{raw}+90.63)*0.9942)-90.0" />
+
+And similarly, we can plug in measured raw low and high into the equation and get exactly +90 degrees and -90 degrees out:
+
+![roll_equation_raw_low](images/lab2/roll_equation_raw_low.png)
+
+![roll_equation_raw_high](images/lab2/roll_equation_raw_high.png)
+
+
 
 
 
