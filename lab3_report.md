@@ -18,6 +18,10 @@ Note that I need an extra wire on the XSHUT of both ToF sensors connected to GPI
 
 ## Lab Tasks
 
+For this lab, most of the tasks were done with one sensor. Below is a picture showing how the sensor was connected to to the Artemis. Later, when we need the IMU and the second ToF sensors, they were simply plugged into the remaining two ports of the QWIIC 4-way Multiport board:
+
+![one_sensor_setup](images/lab3/one_sensor_setup.png)
+
 ### Self-Powering Artemis from Battery
 
 In this task, we were asked to attach a JST connector to the 650 mAh battery we were given in the lab kit, and demonstrate that the Artemis was able to run from the battery power. Below is a video demonstrating the `ECHO` and `PING` commands from Lab 1 working over Bluetooth to my Artemis running off battery power only:
@@ -27,4 +31,6 @@ In this task, we were asked to attach a JST connector to the 650 mAh battery we 
 ### I2C Address Scanning
 
 In this task, we downloaded the example code for I2C communication onto the Artemis and ran a scan of all I2C devices connected to the Artemis. Below is a screenshot of the result of the scan:
+
+
 
