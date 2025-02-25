@@ -4,6 +4,27 @@ In this lab, we familiarized ourselves with the Time of Flight (ToF) Sensors pro
 
 ## Prelab
 
-Hi
+The ToF sensors communicate with the Artemis using the I2C protocol; they have a **default address of 0x52**, as mentioned in the datasheet.
 
-## Lab Instances
+I want to communicate with both ToF sensors simultaneously, so I will need to change the address of one of the ToF sensors in the software setup. When doing the planning and mapping portion of the class, it will be useful to gather distance information from both sensors at the same time while moving through the obstacle course. I won't need to turn on and turn off the sensors constantly in order to gather data from both sensors.
+
+I originally wanted to put one sensor in front, and one sensor on the side, but after temporarily placing the sensor on the car and looking at how close the wheels were to obstructing the side-facing sensor's field of view, I decided against putting the sensor on the side. The field of view to the front and back of the car are identical and quite wide, meaning that they will hopefully allow me to process the data in the same way onboard the Artemis. So I decided to mount one sensor on the front and one sensor on the back. It may be possible for the sensors to miss some obstacles that are thin and to the left or right of the car, if the car is driving too fast. But, if the field of view of the ToF sensors is wide enough, I believe this arrangement won't miss any obstacles.
+
+The wiring diagram is as follows (**REPLACE WITH REAL IMAGE**):
+
+![imu_connection](images/lab2/imu_connection.jpeg)
+
+Note that I need an extra wire on the XSHUT of both ToF sensors connected to GPIO pins on the Artemis. This way, in the software, I have control over when the devices reset (I can turn on / turn off the sensors at will).
+
+## Lab Tasks
+
+### Self-Powering Artemis from Battery
+
+In this task, we were asked to attach a JST connector to the 650 mAh battery we were given in the lab kit, and demonstrate that the Artemis was able to run from the battery power. Below is a video demonstrating the `ECHO` and `PING` commands from Lab 1 working over Bluetooth to my Artemis running off battery power only:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/AWIFE3QcFvA?si=nEgzgX8hOBOaXlA_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+### I2C Address Scanning
+
+In this task, we downloaded the example code for I2C communication onto the Artemis and ran a scan of all I2C devices connected to the Artemis. Below is a screenshot of the result of the scan:
+
