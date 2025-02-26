@@ -10,11 +10,11 @@ I want to communicate with both ToF sensors simultaneously, so I will need to ch
 
 I originally wanted to put one sensor in front, and one sensor on the side, but after temporarily placing the sensor on the car and looking at how close the wheels were to obstructing the side-facing sensor's field of view, I decided against putting the sensor on the side. The field of view to the front and back of the car are identical and quite wide, meaning that they will hopefully allow me to process the data in the same way onboard the Artemis. So I decided to mount one sensor on the front and one sensor on the back. It may be possible for the sensors to miss some obstacles that are thin and to the left or right of the car, if the car is driving too fast. But, if the field of view of the ToF sensors is wide enough, I believe this arrangement won't miss any obstacles.
 
-The wiring diagram is as follows (**REPLACE WITH REAL IMAGE**):
+The wiring diagram is as follows:
 
-![imu_connection](images/lab2/imu_connection.jpeg)
+![wiring_diagram](images/lab3/wiring_diagram.png)
 
-Note that I need an extra wire on the XSHUT of both ToF sensors connected to GPIO pins on the Artemis. This way, in the software, I have control over when the devices reset (I can turn on / turn off the sensors at will).
+Note that I need an extra wire on the XSHUT of one of the ToF sensors connected to a GPIO pin on the Artemis (I chose A2). This way, in the software, I can turn one of the ToF sensors on and off at will, which will be useful for reprogramming the I2C address of the sensor.
 
 ## Lab Tasks
 
