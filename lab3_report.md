@@ -18,13 +18,13 @@ Note that I need an extra wire on the XSHUT of both ToF sensors connected to GPI
 
 ## Lab Tasks
 
-### Self-Powering Artemis from Battery
+### Self-Powering Artemis from Battery (_Task 1_)
 
 In this task, we were asked to attach a JST connector to the 650 mAh battery we were given in the lab kit, and demonstrate that the Artemis was able to run from the battery power. Below is a video demonstrating the `ECHO` and `PING` commands from Lab 1 working over Bluetooth to my Artemis running off battery power only:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/AWIFE3QcFvA?si=nEgzgX8hOBOaXlA_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-### I2C Address Scanning
+### I2C Address Scanning (_Tasks 2, 3, 4, 5_)
 
 In this task, we downloaded the example code for I2C communication onto the Artemis and ran a scan of all I2C devices connected to the Artemis. Below is a screenshot of the result of the scan:
 
@@ -34,7 +34,7 @@ We see that the address is `0x29`. which is not the same as the expected `0x52` 
 
 Thus, the `0x52` address provided in the datasheet is the address of the sensor to the controlling device (i.e. the address of the ToF sensor from the perspective of the Artemis), as its LSB is 0 (`0x52 = 0b 0101 0010`). The scan simply prints out the first seven bits which actually specify the address of the device, which are `0b 0101 001`. Padding an extra 0 on the front gives `0b 0010 1001`, which is the `0x29` that we see in the screenshot.
 
-### ToF Sensor Ranging Modes
+### ToF Sensor Ranging Modes (_Task 6_)
 
 The ToF Sensor has three modes: short, medium, and long. Below is a screenshot of the table in the datasheet discussing the modes:
 
@@ -43,7 +43,7 @@ The ToF Sensor has three modes: short, medium, and long. Below is a screenshot o
 The short mode is the least impacted by strong ambient light; the fast robots lab has pretty strong artificial lighting (we are not trying to drive the robot in the dark). 130 cm is also not that short of a distance to sense; with good control, it should be possible to drive the car within a meter of all of the obstacles in the course and thus not miss any obstacles. Finally, the short range has the smallest possible time budget of 20 ms, which theoretically can give readings up to 50 Hz. So, for all of these reasons, I chose the **short ranging mode** to operate my ToF sensors.
 
 
-### Collecting Data from ToF Sensors
+### Collecting Data from ToF Sensors (_Tasks 8, 9 (part), 10, 11, 12_)
 
 I decided to mix up the order of the lab tasks somewhat; I got everything working with two sensors with the Artemis relaying all of the data back to the computer reliably first, then I characterized the ToF sensors second.
 
@@ -63,7 +63,7 @@ SFEVL53L1X myTOF1;
 SFEVL53L1X myTOF2(Wire, TOF2_SHUTDOWN_PIN);
 ```
 
-Then, in the `setup()` function, I included this sequence of commands to initialize both sensors and program them to
+Then, in the `setup()` function, I included this sequence of commands to initialize both sensors properly:
 
 ```cpp
 // Shut down Sensor 2
@@ -172,7 +172,7 @@ if (log_sensor_data) {
 
 A few things to note here:
 
-* This logic ensures that the `loop()` function is not blocking while waiting for the ToF sensors to collect data. We are looping through as fast as possible: if there is IMU data ready, we calculate and record it; if there is TOF sensor data ready, we record it. (**task 9 of the lab**)
+* This logic ensures that the `loop()` function is not blocking while waiting for the ToF sensors to collect data. We are looping through as fast as possible: if there is IMU data ready, we calculate and record it; if there is TOF sensor data ready, we record it. (**part of task 9 of the lab**)
 * We now need to keep track of two sets of timestamps, since the IMU sends back data much faster than the ToF sensors
 * On the first iteration of the loop, the ToF sensors may have been ranging for a long time beforehand or have inaccurate measurements, so we need to clear it by starting a new measurement on the first loop through. We set `tof_arr_ix` to `-1` for this reason. After that, we simply check if both sensors have data ready; if they both do, we get their measurements (converted to cm), record them (along with the time), stop the measurement, and start a new one.
 
@@ -285,10 +285,25 @@ ble.send_command(CMD.SEND_SENSOR_LOGS, "");
 
 During the time that we are logging data, we oscillate the IMU about roll, pitch, and yaw, then wave our hand in front of the first ToF sensor, and then the second ToF sensor. The received data is shown below, which **demonstrates that we are able to send data from the IMU as well as data from both ToF sensors simultaneously, and that all of the sensors are working** (tasks 8, 10, 11, and 12 of the lab):
 
+**RESULT HERE**
 
+The following is a video of me collecting the data shown in the above graph:
 
+**VIDEO HERE**
 
-### ToF Sensor Characterization
+### Discussion of Loop Speed (_Task 9_)
+
+Here, we want to characterize the rates at which various activities are happening on the Artemis. To do this, we run the same test as before, but we run it for one second instead of eight. We also insert a counter in the `if` statement in the main `loop()` function that counts how many times we check for new sensor data in that one second. We can count how many times we received ToF data and IMU data by looking at the length of the received data arrays from each sensor. Here are the results:
+
+**RESULT HERE**
+
+We see that the ToF sensors are returning data at about 20 Hz, the IMU is returning data at about 200 Hz, and the loop is also looping at about 200 Hz. This means the IMU data collection is the limiting factor, not the ToF sensors.
+
+### ToF Sensor Characterization (_Task 7_)
+
+### Infrared Sensor Discussion (_Task 13 (part)_)
+
+### Sensitivity to Texture & Color (_Task 13 (part)_)
 
 
 
