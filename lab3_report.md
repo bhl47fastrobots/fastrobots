@@ -295,9 +295,63 @@ The following is a video of me collecting the data shown in the above graph:
 
 Here, we want to characterize the rates at which various activities are happening on the Artemis. To do this, we run the same test as before, but we run it for one second instead of eight. We also insert a counter in the `if` statement in the main `loop()` function that counts how many times we check for new sensor data in that one second. We can count how many times we received ToF data and IMU data by looking at the length of the received data arrays from each sensor. Here are the results:
 
-**RESULT HERE**
+![sensor_data_rates](images/lab3/sensor_data_rates.png)
 
-We see that the ToF sensors are returning data at about 20 Hz, the IMU is returning data at about 200 Hz, and the loop is also looping at about 200 Hz. This means the IMU data collection is the limiting factor, not the ToF sensors.
+![main_loop_rate](images/lab3/main_loop_rate.png)
+
+We see that the ToF sensors are returning data at 19 Hz (19 data points in 1 second), the IMU is returning data at exactly 200 Hz (200 data points in 1 second), and the loop is also looping 200 Hz. This means the IMU data collection is the limiting factor, not the ToF sensors.
+
+The main loop counter was implemented as follows:
+
+```cpp
+// *************** GLOBAL VARIABLES ******** //
+// counter for main loop
+int count = 0;
+
+...
+
+/*
+ * In handle_command() function:
+ */
+case SEND_SENSOR_LOGS:
+     /*
+      * Send sensor data back, as discussed above
+      */
+
+    // print out the counter for the main loop, then reset it
+    Serial.print("Main loop counter: ");
+    Serial.println(count);
+    count = 0;
+
+    break;
+
+...
+
+
+/*
+ * In loop() function:
+ */
+ 
+// if want to log sensor data
+if (log_sensor_data) {
+    // increment counter for main loop
+    count++;
+
+    // if space in IMU array and there is data ready
+    if (imu_arr_ix < imu_log_size && myICM.dataReady()) {
+        /*
+         * Do IMU data collection as discussed in Lab 2
+         */
+    }
+
+    // if space in the TOF sensor array
+    if (tof_arr_ix < tof_log_size) {
+        /*
+         * Do TOF data collection as discussed above
+         */
+    }
+}
+```
 
 ### ToF Sensor Characterization (_Task 7_)
 
