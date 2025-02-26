@@ -400,7 +400,17 @@ We see that the accuracy is not really affected at all by the timing budget (not
 
 ### Infrared Sensor Discussion (_Task 13 (part)_)
 
+As discussed in lecture, there are three main types of IR distance sensors: amplitude, triangulation, and ToF. 
+
+Amplitude-based IR sensors are extremely cheap, but are short range and are not very good at rejecting differences in the target's color or texture, nor do they work in high-ambient-light settings. They work by having a single emitter (IR LED) and a single receiver (a photodiode); the signal from the sensor is solely a function of how much IR energy that photodiode detects.
+
+Triangualtion-based IR sensors are sort of middle-of-the-road with everything: moderate cost, moderate range, moderately good at rejecting differences in the target's color or texture. However, they do not work in high-ambient light settings. They do have a low refresh rate though. They work by having a single emitter (IR LED) and a row of receivers. The signal from the sensor is a function of both the strength of the signals coming into the photodiodes and which photodiode is the strongest (which means it is more accurate than the amplitude-based IR sensors).
+
+ToF IR sensors are the most expensive and have the longest range. They can reject differences in the target's color or texture, and can work (in diminished capacity) in high-ambient-light settings. They have the lowest refresh rate and require intensive processing to generate their output signals. They work by sending out pulses of IR light and performing analysis on the timing and strength of the returned pulses to determine an object's distance.
+
 ### Sensitivity to Texture & Color (_Task 13 (part)_)
+
+
 
 ## Acknowledgements
 
@@ -408,17 +418,4 @@ We see that the accuracy is not really affected at all by the timing budget (not
 * Steven Sun (lending me a tape measure)
 * Jeffery Cai (debugging, questions about soldering)
 * [This website](https://community.st.com/t5/imaging-sensors/can-we-change-the-vl53l1x-address/m-p/310169) for a helpful forum answer on how to reprogram I2C addresses via software
-
-
-
-
-
-
-
-
-
-
-
-
-
 
