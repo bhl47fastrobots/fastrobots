@@ -285,11 +285,11 @@ ble.send_command(CMD.SEND_SENSOR_LOGS, "");
 
 During the time that we are logging data, we oscillate the IMU about roll, pitch, and yaw, then wave our hand in front of the first ToF sensor, and then the second ToF sensor. The received data is shown below, which **demonstrates that we are able to send data from the IMU as well as data from both ToF sensors simultaneously, and that all of the sensors are working** (tasks 8, 10, 11, and 12 of the lab):
 
-**RESULT HERE**
+![all_data_test](images/lab3/all_data_test.png)
 
 The following is a video of me collecting the data shown in the above graph:
 
-**VIDEO HERE**
+<iframe width="560" height="315" src="https://www.youtube.com/embed/O1i3tFoIsHk?si=qFRHh6GWSSPDe8Th" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Discussion of Loop Speed (_Task 9_)
 
