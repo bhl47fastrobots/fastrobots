@@ -355,12 +355,59 @@ if (log_sensor_data) {
 
 ### ToF Sensor Characterization (_Task 7_)
 
+Below is a picture of the setup that I used to test the ToF sensors. The sensor is taped to the back of my computer, with a tape measure running out in front of the sensor. I placed my fast robots box on the tape measure at set distances to perform various tests on the sensor.
+
+![tof_test_setup](images/lab3/tof_test_setup.png)
+
+First, I performed a test to measure the range, accuracy, and reliability of the sensor together. I moved the box away from the sensor in 10-cm increments, starting at 10 cm away, until the sensor started giving me nonsensical readings. At each distance, I had the ToF sensor record data for 5 seconds (around 100 data points); I calculated the mean of the data (which would give me some measure of the accuracy), as well as the standard deviation (which would give me some measure of the reliability). The range could be determined by the distance at which either the accuracy or the standard deviation started to increase by a large amount (meaning the sensor was not giving real data any more).
+
+Here are the resulting plots:
+
+![tof_distance_test](images/lab3/tof_distance_test.png)
+
+We see that the sensor is accurate to within about +/- 1 cm (wow!) up to a distance of around 80 cm, so we could say that the sensor has a range of ~80 cm. However, the standard deviation and error don't really "blow up" until 140-150 cm, so the sensor data is still useable (albeit with more error) between distances of 80-140 cm. So, we could also say that the sensor has a range of ~140 cm (which agrees with the datasheet). The accuracy is clearly also quite good. The reliability (quantified by the standard deviation in the bottom plot) is also very good, being around 0.1 cm for basically all distances less than 120 cm. 
+
+Finally, I performed a test to determine the effect that time budgeting has on the reliability and accuracy. For this, I added a new command `SET_TIMING_BUDGET` to the Artemis, so I didn't have to recompile the code each time. On the Arduino side, I implemented it with this code:
+
+```cpp
+/*
+ * Set the timing budget of the TOF1 sensor
+ */
+case SET_TIMING_BUDGET:
+    int timing_budget;
+
+    // Extract the next value from the command string as an integer
+    success = robot_cmd.get_next_value(timing_budget);
+    if (!success)
+        return;
+
+    myTOF1.setTimingBudgetInMs((uint16_t) timing_budget);
+
+    timing_budget = (int) myTOF1.getTimingBudgetInMs();
+    Serial.print("Timing Budget is now: ");
+    Serial.println(timing_budget);
+    
+    break;
+```
+
+Basically, I used the `setTimingBudgetInMs()` function in the library to change the timing budget of the ToF sensor.
+
+I than changed the timing budget in the Python code and ran several tests with the box 40 cm away from the sensor, calculating the measured distance (accuracy) and the standard deviation (reliability) each time. The results of the tests are below:
+
+![tof_time_budget_test](images/lab3/tof_time_budget_test.png)
+
+We see that the accuracy is not really affected at all by the timing budget (note the scale of the y-axis). Pretty much every timing budget gave us a reading that was extremely close to the actual distance of 40 cm. However, timing budgets lower than the default of 50 ms gave us appreciably larger standard deviations and thus lower reliability. On that curve, it seems that a timing budget somewhere between 50 and 100 ms offers a good trade-off between reliability and speed.
+
 ### Infrared Sensor Discussion (_Task 13 (part)_)
 
 ### Sensitivity to Texture & Color (_Task 13 (part)_)
 
+## Acknowledgements
 
-
+* Sophia Lin (lab partner)
+* Steven Sun (lending me a tape measure)
+* Jeffery Cai (debugging, questions about soldering)
+* [This website](https://community.st.com/t5/imaging-sensors/can-we-change-the-vl53l1x-address/m-p/310169) for a helpful forum answer on how to reprogram I2C addresses via software
 
 
 
