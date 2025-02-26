@@ -404,13 +404,31 @@ As discussed in lecture, there are three main types of IR distance sensors: ampl
 
 Amplitude-based IR sensors are extremely cheap, but are short range and are not very good at rejecting differences in the target's color or texture, nor do they work in high-ambient-light settings. They work by having a single emitter (IR LED) and a single receiver (a photodiode); the signal from the sensor is solely a function of how much IR energy that photodiode detects.
 
-Triangualtion-based IR sensors are sort of middle-of-the-road with everything: moderate cost, moderate range, moderately good at rejecting differences in the target's color or texture. However, they do not work in high-ambient light settings. They do have a low refresh rate though. They work by having a single emitter (IR LED) and a row of receivers. The signal from the sensor is a function of both the strength of the signals coming into the photodiodes and which photodiode is the strongest (which means it is more accurate than the amplitude-based IR sensors).
+Triangulation-based IR sensors are sort of middle-of-the-road with everything: moderate cost, moderate range, moderately good at rejecting differences in the target's color or texture. However, they do not work in high-ambient light settings. They do have a low refresh rate though. They work by having a single emitter (IR LED) and a row of receivers. The signal from the sensor is a function of both the strength of the signals coming into the photodiodes and which photodiode is the strongest (which means it is more accurate than the amplitude-based IR sensors).
 
 ToF IR sensors are the most expensive and have the longest range. They can reject differences in the target's color or texture, and can work (in diminished capacity) in high-ambient-light settings. They have the lowest refresh rate and require intensive processing to generate their output signals. They work by sending out pulses of IR light and performing analysis on the timing and strength of the returned pulses to determine an object's distance.
 
 ### Sensitivity to Texture & Color (_Task 13 (part)_)
 
+For this part, I used the same setup for the ToF characterization section, except I put various objects of varying textures and color in front of the sensor at 30 cm distance to see what the results would be. A white cardboard box (the fast robots box) gave:
 
+![white_box_30cm](images/lab3/white_box_30cm.png)
+
+A green cutting board gave:
+
+![green_cutting_board_30cm](images/lab3/green_cutting_board_30cm.png)
+
+A pink hoodie gave:
+
+![pink_hoodie_30cm](images/lab3/pink_hoodie_30cm.png)
+
+A brown fluffy teddy bear gave:
+
+![brown_fluffy_teddy_bear_30cm](images/lab3/brown_fluffy_teddy_bear_30cm.png)
+
+As you can see, the ToF sensor detected the distance to these items pretty accurately (with the possible exception of the teddy bear, but I believe that was because the surface was not perfectly flat, and the teddy bear was a little small so the ToF sensor may have seen slightly around the teddy bear into the distance, thus returning a larger value).
+
+This is consistent with what we learned in class, which is that ToF sensors are not minimally affected by the target's texture or color.
 
 ## Acknowledgements
 
