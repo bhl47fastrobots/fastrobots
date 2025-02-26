@@ -24,3 +24,8 @@ Click on the images to navigate to the lab report!
 ## Lab 3 - Time of Flight (ToF) Sensors
 
 [![lab3_thumbnail](images/lab3/lab3_thumbnail.jpg)](./lab3_report.html "Lab 3 Report")
+
+## Lab 4 - Motor Drivers && Motors
+
+[![lab4_thumbnail](images/lab4/lab4_thumbnail.jpg)](./lab4_report.html "Lab 4 Report")
+
