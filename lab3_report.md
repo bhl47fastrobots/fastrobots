@@ -18,10 +18,6 @@ Note that I need an extra wire on the XSHUT of both ToF sensors connected to GPI
 
 ## Lab Tasks
 
-For this lab, most of the tasks were done with one sensor. Below is a picture showing how the sensor was connected to to the Artemis. Later, when we need the IMU and the second ToF sensors, they were simply plugged into the remaining two ports of the QWIIC 4-way Multiport board:
-
-![one_sensor_setup](images/lab3/one_sensor_setup.png)
-
 ### Self-Powering Artemis from Battery
 
 In this task, we were asked to attach a JST connector to the 650 mAh battery we were given in the lab kit, and demonstrate that the Artemis was able to run from the battery power. Below is a video demonstrating the `ECHO` and `PING` commands from Lab 1 working over Bluetooth to my Artemis running off battery power only:
@@ -36,7 +32,7 @@ In this task, we downloaded the example code for I2C communication onto the Arte
 
 We see that the address is `0x29`. which is not the same as the expected `0x52` as specified in the datasheet. This is because in the I2C protocol, the least-significant-bit (LSB) of the 8-bit address specifies whether it is a message from the master to the slave (LSB = 0) or a message from the slave to the master (LSB = 1). So, in reality, the I2C device only has seven bits to specify its address; the eighth bit is determined by the direction of the message being sent.
 
-Thus, the `0x52` address provided in the datasheet is the address of the sensor to the controlling device (i.e. the address of the ToF sensor from the perspective of the Artemis), as its LSB is 0 (`0x52 = 0b 0101 0010`). The scan simply prints out the first seven bits which actually specify the address of the device, which are `0b 0101 001`. Padding an extra 0 on the front gives `0b 0010 1001`, which is the `0x29` that we in the resulting screenshot.
+Thus, the `0x52` address provided in the datasheet is the address of the sensor to the controlling device (i.e. the address of the ToF sensor from the perspective of the Artemis), as its LSB is 0 (`0x52 = 0b 0101 0010`). The scan simply prints out the first seven bits which actually specify the address of the device, which are `0b 0101 001`. Padding an extra 0 on the front gives `0b 0010 1001`, which is the `0x29` that we see in the screenshot.
 
 ### ToF Sensor Ranging Modes
 
@@ -44,6 +40,269 @@ The ToF Sensor has three modes: short, medium, and long. Below is a screenshot o
 
 ![ranging_mode_table](images/lab3/ranging_mode_table.png)
 
-The short mode is the least impacted by strong ambient light; the fast robots lab has pretty strong artificial lighting (we are not trying to drive the robot in the dark). 130 cm is also not that short of a distance to sense; with good control, it should be possible to drive the car within a meter of all of the obstacles in the course and thus not miss any obstacles. Finally, the short range has the fastest response ranging time budget of 20 ms, which theoretically can give readings up to 50 Hz. So, for all of these readings, I chose the **short ranging mode** to operate my ToF sensors.
+The short mode is the least impacted by strong ambient light; the fast robots lab has pretty strong artificial lighting (we are not trying to drive the robot in the dark). 130 cm is also not that short of a distance to sense; with good control, it should be possible to drive the car within a meter of all of the obstacles in the course and thus not miss any obstacles. Finally, the short range has the smallest possible time budget of 20 ms, which theoretically can give readings up to 50 Hz. So, for all of these reasons, I chose the **short ranging mode** to operate my ToF sensors.
+
+
+### Collecting Data from ToF Sensors
+
+I decided to mix up the order of the lab tasks somewhat; I got everything working with two sensors with the Artemis relaying all of the data back to the computer reliably first, then I characterized the ToF sensors second.
+
+As described in the prelab, I soldered a wire from the Artemis `A2` pin to the `XSHUT` pin of one of the ToF sensors, as shown in the picture below:
+
+![three_sensor_setup](images/lab3/three_sensor_setup.png)
+
+To communicate with both sensors, I included the following definitions in my Arduino sketch and initialized my ToF sensors like so:
+
+```cpp
+// Interrupt and shutdown pins for second ToF
+#define TOF2_SHUTDOWN_PIN A2
+
+#define ALT_I2C_ADDR 0x28 // Reprogrammed I2C address of TOF Sensor 1
+
+SFEVL53L1X myTOF1;
+SFEVL53L1X myTOF2(Wire, TOF2_SHUTDOWN_PIN);
+```
+
+Then, in the `setup()` function, I included this sequence of commands to initialize both sensors and program them to
+
+```cpp
+// Shut down Sensor 2
+pinMode(TOF2_SHUTDOWN_PIN, OUTPUT);
+digitalWrite(TOF2_SHUTDOWN_PIN, LOW);
+
+// Reprogram the address of Sensor 1
+myTOF1.setI2CAddress(ALT_I2C_ADDR);
+
+// Init Sensor 1
+if (myTOF1.begin() != 0) {
+  Serial.println("Sensor 1 failed to begin. Please check wiring. Freezing...");
+  while (1);
+}
+myTOF1.setDistanceModeShort(); // set the distance mode of the sensor to "short"
+Serial.println("TOF Sensor 1 successfully online!");
+
+// Bring Sensor 2 back online
+digitalWrite(TOF2_SHUTDOWN_PIN, HIGH);
+
+// Init Sensor 2
+if (myTOF2.begin() != 0) {
+  Serial.println("Sensor 2 failed to begin. Please check wiring. Freezing...");
+  while (1);
+}
+myTOF2.setDistanceModeShort(); // set the distance mode of the sensor to "short"
+Serial.println("TOF Sensor 2 successfully online!");
+```
+
+Seeing that I eventually need to send the IMU data along with the ToF data in this and future labs, I decided to integrate the ToF data collection into my code from Lab 2 immediately. I added three commands: `START_SENSOR_LOG`, `STOP_SENSOR_LOG`, and `SEND_SENSOR_LOGS`. The first two commands simply set a flag telling the Arduino when to start or stop recording sensor data into global arrays (from both the IMU and the ToF sensors). `SEND_SENSOR_LOGS` tells the Artemis to send back all of the data in the global arrays back to the computer.
+
+To implement this on the Arduino side, I defined the following the global variables for the IMU and ToF:
+```cpp
+// flag to log sensor data
+bool log_sensor_data = false;
+
+// ******************************** IMU ****************************** //
+const int imu_log_size = 2000;
+float accel_x[imu_log_size], accel_y[imu_log_size], accel_z[imu_log_size];
+float gyro_x[imu_log_size], gyro_y[imu_log_size], gyro_z[imu_log_size];
+float accel_roll[imu_log_size], accel_pitch[imu_log_size];
+float gyro_roll[imu_log_size], gyro_pitch[imu_log_size], gyro_yaw[imu_log_size];
+float lpf_accel_roll[imu_log_size], lpf_accel_pitch[imu_log_size];
+float comp_roll[imu_log_size], comp_pitch[imu_log_size];
+unsigned long imu_times[imu_log_size];
+int imu_arr_ix = 0;
+float dt;
+
+float accel_alpha = 0.152; // accelerometer LPF alpha
+float comp_alpha = 0.001; // complementary filter alpha
+
+// for holding values when we take raw readings in the main loop
+float accel_x_curr, accel_y_curr, accel_z_curr, gyro_x_curr, gyro_y_curr, gyro_z_curr;
+
+// ******************************** TOF ****************************** //
+
+const int tof_log_size = 1000;
+float tof_data_one[tof_log_size]; // data from TOF1
+float tof_data_two[tof_log_size]; // data from TOF2
+unsigned long tof_times[tof_log_size];
+int tof_arr_ix = -1;
+```
+
+In the `loop()` function, I have the following logic to get the acquire and calculate the requested data from the sensors and put them into the global arrays:
+
+```cpp
+// if want to log sensor data
+if (log_sensor_data) {
+    
+    // if space in IMU array and there is data ready
+    if (imu_arr_ix < imu_log_size && myICM.dataReady()) {
+
+        /*
+         * Implementation of the IMU data collection and calculation
+         * Unchanged from Lab 2 (see that report for details)
+         */
+         
+    }
+     
+    // if space in the TOF sensor array
+    if (tof_arr_ix < tof_log_size) {
+        // if first measurement, simply start a measurement
+        // else, if sensors have data ready, take measurements and record, and start a new measurement
+        if (tof_arr_ix == -1) {
+            myTOF1.startRanging();
+            myTOF2.startRanging();
+            tof_arr_ix++;
+        } else if (myTOF1.checkForDataReady() && myTOF2.checkForDataReady()) {
+            tof_data_one[tof_arr_ix] = ((float) myTOF1.getDistance()) / 10.0;
+            tof_data_two[tof_arr_ix] = ((float) myTOF2.getDistance()) / 10.0;
+            tof_times[tof_arr_ix] = millis();
+
+            myTOF1.clearInterrupt();
+            myTOF1.stopRanging();
+            myTOF1.startRanging();
+
+            myTOF2.clearInterrupt();
+            myTOF2.stopRanging();
+            myTOF2.startRanging();
+
+            tof_arr_ix++;
+        }
+    }
+}
+```
+
+A few things to note here:
+
+* This logic ensures that the `loop()` function is not blocking while waiting for the ToF sensors to collect data. We are looping through as fast as possible: if there is IMU data ready, we calculate and record it; if there is TOF sensor data ready, we record it. (**task 9 of the lab**)
+* We now need to keep track of two sets of timestamps, since the IMU sends back data much faster than the ToF sensors
+* On the first iteration of the loop, the ToF sensors may have been ranging for a long time beforehand or have inaccurate measurements, so we need to clear it by starting a new measurement on the first loop through. We set `tof_arr_ix` to `-1` for this reason. After that, we simply check if both sensors have data ready; if they both do, we get their measurements (converted to cm), record them (along with the time), stop the measurement, and start a new one.
+
+Finally, in the `handle_command` function, we have the following implementations of `START_SENSOR_LOG` and `STOP_SENSOR_LOG` (which simply sets the appropriate flag to the desired value), as well as `SEND_SENSOR_LOGS` (which sends to the computer the processed IMU data first, followed by the ToF sensor data):
+
+```cpp
+/*
+ * This command tells the Artemis to start logging sensor data (both IMU and TOF)
+ */
+case START_SENSOR_LOG:
+    log_sensor_data = true;
+    break;
+
+/*
+ * This command tells the Artemis to stop logging sensor data (both IMU and TOF)
+ */
+case STOP_SENSOR_LOG:
+    log_sensor_data = false;
+    break;
+    
+/*
+ * This command tells the Artemis to send back all IMU and TOF sensor data and reset logging arrays
+ */
+case SEND_SENSOR_LOGS:
+      // construct string to send back IMU data
+      for (int i = 0; i < imu_arr_ix; i++) {
+          sprintf(char_arr, "%u|%d.%02d|%d.%02d|%d.%02d", imu_times[i],
+                                                      (int) comp_roll[i], abs((int) (comp_roll[i] * 100.0) % 100),
+                                                      (int) comp_pitch[i], abs((int) (comp_pitch[i] * 100.0) % 100),
+                                                      (int) gyro_yaw[i], abs((int) (gyro_yaw[i] * 100.0) % 100));
+                                                  
+
+          tx_estring_value.clear();
+          tx_estring_value.append(char_arr);
+          tx_characteristic_string.writeValue(tx_estring_value.c_str());
+      }
+
+      // reset the IMU array index
+      imu_arr_ix = 0;
+
+      // construct string to send back TOF data
+      for (int i = 0; i < tof_arr_ix; i++) {
+          sprintf(char_arr, "%u|%d.%02d|%d.%02d", tof_times[i],
+                                        (int) tof_data_one[i], abs((int) (tof_data_one[i] * 100.0) % 100),
+                                        (int) tof_data_two[i], abs((int) (tof_data_two[i] * 100.0) % 100));
+
+          tx_estring_value.clear();
+          tx_estring_value.append(char_arr);
+          tx_characteristic_string.writeValue(tx_estring_value.c_str());
+      }
+
+      // reset the TOF array index
+      tof_arr_ix = -1;
+
+      break;
+```
+
+On the Python side, we initialize empty lists to hold all of the data, and write a notification handler to process the incoming strings. The strings that come back from a call of `SEND_SENSOR_LOGS` have two types:
+
+1. The IMU data, which have 4 parts: the timestamp, the complementary filter roll estimation, the complementary filter pitch estimation, and the gyroscope. 
+2. The ToF data, which have 3 parts: the timestamp, the ToF 1 data, and the ToF 2 data
+
+Thus, we can figure out which sensor's data we are receiving by looking at the length of the list after being spliced. 
+
+To receive the data from the Artemis, we send a `START_SENSOR_LOG` command, wait a certain amount of seconds while the Artemis is collecting data, and then a `STOP_SENSOR_LOG` command. Then, we clear the data lists, and then send a `SEND_SENSOR_LOGS` command to get the data onto the computer. Here is the code:
+
+```python
+comp_roll = list()
+comp_pitch = list()
+gyro_yaw = list()
+imu_times = list()
+
+tof_one = list()
+tof_two = list()
+tof_times = list()
+
+def sensor_log_notification_handler(uuid, characteristic):
+    s = ble.bytearray_to_string(characteristic)
+    strs = s.split('|')
+
+    if (len(strs) == 4):
+        imu_times.append(int(strs[0]))
+        comp_roll.append(float(strs[1]))
+        comp_pitch.append(float(strs[2]))
+        gyro_yaw.append(float(strs[3]))
+    else:
+        tof_times.append(int(strs[0]))
+        tof_one.append(float(strs[1]))
+        tof_two.append(float(strs[2]))
+
+ble.start_notify(ble.uuid['RX_STRING'], sensor_log_notification_handler)
+
+# log data for some number of seconds
+log_data_for_time = 2;
+
+ble.send_command(CMD.START_SENSOR_LOG, "");
+time.sleep(log_data_for_time);
+ble.send_command(CMD.STOP_SENSOR_LOG, "");
+
+# clear the lists, then send command to get data back
+comp_roll.clear()
+comp_pitch.clear()
+gyro_yaw.clear()
+imu_times.clear()
+tof_one.clear()
+tof_times.clear()
+
+ble.send_command(CMD.SEND_SENSOR_LOGS, "");
+```
+
+During the time that we are logging data, we oscillate the IMU about roll, pitch, and yaw, then wave our hand in front of the first ToF sensor, and then the second ToF sensor. The received data is shown below, which **demonstrates that we are able to send data from the IMU as well as data from both ToF sensors simultaneously, and that all of the sensors are working** (tasks 8, 10, 11, and 12 of the lab):
+
+
+
+
+### ToF Sensor Characterization
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
