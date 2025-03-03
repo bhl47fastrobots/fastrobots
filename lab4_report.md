@@ -94,26 +94,39 @@ void loop() {
 
 This code sweeps the PWM output from 0 to 255 on one of the control pins for both motors (forward), and then sweeps the PWM output from 0 to 255 on the other control pin for both motors (backward). Here is a video showing the PWM output:
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/-uKx-hrZJuY?si=4w3niAX3Uq5QAM6B" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
+Here is an oscilloscope screen capture of the waveform generated at a fixed PWM value of `128`, which is a 50% duty cycle for one of the motor drivers:
 
-Here is an oscilloscope screen capture of the waveform generated at a fixed PWM value of `128`, which is a 50% duty cycle:
+![driver1_pwm_output_rigol](images/lab4/driver1_pwm_output_rigol.png)
+
+And here is the same waveform for the other motor driver:
+
+![driver2_pwm_output_rigol](images/lab4/driver2_pwm_output_rigol.png)
+
+For both waveforms, channel 1 is probing between the `xOUT1` pins and ground, and channel 2 is probing between the `xOUT` pins and ground. The first picture is when channel 1 is outputting a PWM signal (motor is running forwards), and the second picture is when channel 2 is outputting a PWM signal (motor is running backwards).
 
 ### Motors Running from Power Supply (_Task 4_)
 
 Next, we attached the motors to the outputs of the motor drivers as shown in the wiring diagram. Here are videos of one motor running:
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/K5XxjD31BE4?si=Ylbt2Y_srBxgz9K6" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 And here is a video of the other motor running:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/dCBaGB0QXzA?si=7Ti_v6UXNcEmgkT_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Motors Running from Battery (_Task 5_)
 
 Next, we attached the power supply wires for the motor drivers to the battery connector cables, plugged in the battery, and tested that both motors can run off of battery power. Here is the video showing this test:
 
-
+<iframe width="560" height="315" src="https://www.youtube.com/embed/nKhDnwe5_Yo?si=eMhgstjiHxaJGjcB" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Mounting Hardware Inside Car (_Task 7_)
 
 Next, we mounted everything inside the car. Double sided tape wasn't cutting it for me, so I ended up using electrical tape and duct tape to secure everything down. I refrained from using glue since glue is difficult to remove, in case repairs on the car are needed. Below is a picture of my finished car, with indicators pointing out relevant components:
+
+
 
 Below is a video of the car on battery power running on the ground:
 
@@ -140,3 +153,4 @@ Finally, we add some turns to the video from the previous task to complete our d
 
 
 ## Acknowledgements
+
