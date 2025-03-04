@@ -6,6 +6,8 @@ In this lab, we hooked up the two dual motor drivers, demonstrated that we can c
 
 Below is a wiring diagram of the setup, with everything attached:
 
+**ADD PICTURE**
+
 We want to power the Artemis and the motor drivers/motors from separate batteries because the motors consume high current (and can be pulsed too). This may cause issues with the power supply on the Artemis, which is sensitive and needs to be more precise. Also, this means that the high-current-carrying wires coming from the motor battery to the motors will not be running near the Artemis. If they did, they may emit EMI and interfere with the proper operation of the signals coming out of the Artemis.
 
 ## Lab Tasks
@@ -126,27 +128,147 @@ Next, we attached the power supply wires for the motor drivers to the battery co
 
 Next, we mounted everything inside the car. Double sided tape wasn't cutting it for me, so I ended up using electrical tape and duct tape to secure everything down. I refrained from using glue since glue is difficult to remove, in case repairs on the car are needed. Below is a picture of my finished car, with indicators pointing out relevant components:
 
-
+**ADD PICTURE**
 
 Below is a video of the car on battery power running on the ground:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/oxY-0UJoXcM?si=p4VIhvWyf_7M03X2" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Open Loop Drive Straight (_Task 9_)
 
 Next, we added a calibration factor into the code so that the robot purposely sends a smaller duty cycle to one motor relative to the other. This is since the motors are intrinsically not exactly the same (and the motor drivers are also not exactly the same). This calibration factor tries to correct for that. Here the code on the Arduino side which implements the calibration factor:
 
 ```cpp
+#include <Arduino.h>
 
+#define MTR1_IN1 A3
+#define MTR1_IN2 4
+#define MTR2_IN1 A5
+#define MTR2_IN2 6
+
+#define SPEED 150
+#define CALIB_FACTOR 0.7
+#define GOTIME 800
+#define STOPTIME 5000
+
+void setup() {
+  pinMode(MTR1_IN1, OUTPUT);
+  pinMode(MTR1_IN2, OUTPUT);
+  pinMode(MTR2_IN1, OUTPUT);
+  pinMode(MTR2_IN2, OUTPUT);
+}
+
+void loop() {
+  analogWrite(MTR1_IN1, SPEED * CALIB_FACTOR);
+  analogWrite(MTR1_IN2, 0);
+  analogWrite(MTR2_IN1, 0);
+  analogWrite(MTR2_IN2, SPEED);
+
+  delay(GOTIME);
+  
+  analogWrite(MTR1_IN1, 0);
+  analogWrite(MTR1_IN2, 0);
+  analogWrite(MTR2_IN1, 0);
+  analogWrite(MTR2_IN2, 0);
+
+  delay(STOPTIME);
+
+  analogWrite(MTR1_IN1, 0);
+  analogWrite(MTR1_IN2, SPEED * CALIB_FACTOR);
+  analogWrite(MTR2_IN1, SPEED);
+  analogWrite(MTR2_IN2, 0);
+
+  delay(GOTIME);
+
+  analogWrite(MTR1_IN1, 0);
+  analogWrite(MTR1_IN2, 0);
+  analogWrite(MTR2_IN1, 0);
+  analogWrite(MTR2_IN2, 0);
+
+  delay(STOPTIME);
+}
 ```
 
 Here is a video demonstrating that the robot can drive in an approximately straight line for 6 feet:
+
+**ADD VIDEO TOMORROW**
+
+You can see that the car is very inconsistent! I didn't change the signals sent to the motors between the first forward-and-back movement, and the second forward-and-back movement. Yet, the car exhibits very different behavior on the two runs, as is typical for open-loop control and relatively inexpensive / imprecise hardware. On the second forward movement, the car went approximately straight for 6 feet.
 
 ### Open Loop Control (_Task 10_)
 
 Finally, we add some turns to the video from the previous task to complete our demonstration of open-loop, untethered control of the robot:
 
-
+**ADD VIDEO TOMORROW**
 
 ### Lower Limit PWM (_Task 8, Task 12_)
+
+To find the lower PWM limit for straight movements, I first found the lowest PWM value that keep the car moving forward consisently when I push it. This value is `GOSPEED` in the code below, which turned out to be `45`. Then, I found the lowest PWM value that would start the car from a dead stop consistently. This value is `STARTSPEED` in the code below, which turned out to be `70`.
+
+```cpp
+#include <Arduino.h>
+
+#define MTR1_IN1 A3
+#define MTR1_IN2 4
+#define MTR2_IN1 A5
+#define MTR2_IN2 6
+
+#define STARTSPEED 70
+#define GOSPEED 45
+#define CALIB_FACTOR 0.7
+#define STARTTIME 300
+#define GOTIME 800
+#define STOPTIME 5000
+
+void setup() {
+  pinMode(MTR1_IN1, OUTPUT);
+  pinMode(MTR1_IN2, OUTPUT);
+  pinMode(MTR2_IN1, OUTPUT);
+  pinMode(MTR2_IN2, OUTPUT);
+}
+
+void loop() {
+  analogWrite(MTR1_IN1, STARTSPEED * CALIB_FACTOR);
+  analogWrite(MTR1_IN2, 0);
+  analogWrite(MTR2_IN1, 0);
+  analogWrite(MTR2_IN2, STARTSPEED);
+
+  delay(STARTTIME);
+
+  analogWrite(MTR1_IN1, GOSPEED * CALIB_FACTOR);
+  analogWrite(MTR1_IN2, 0);
+  analogWrite(MTR2_IN1, 0);
+  analogWrite(MTR2_IN2, GOSPEED);
+
+  delay(GOTIME);
+
+  analogWrite(MTR1_IN1, 0);
+  analogWrite(MTR1_IN2, 0);
+  analogWrite(MTR2_IN1, 0);
+  analogWrite(MTR2_IN2, 0);
+
+  delay(STOPTIME);
+}
+
+Below is a video of the slowest forward movement. You can see the difference between the first/second and third forward movements. I didn't change the PWM commands to the car between those three movements, but the third one barely moved. Any lower and the robot does not move forward consistently. So even though the first two movements seem a little fast, or there might be some room to go lower, there really isn't.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/hbwsbrbsx4M?si=lI_qdilRLihQBfug" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Using the same procedure, I found lowest PWM `GOSPEED`s and `STARTSPEED`s for an on-axis turn. Here are the values that I found:
+
+```cpp
+#define STARTSPEED 125
+#define GOSPEED 110
+#define CALIB_FACTOR 0.85
+#define STARTTIME 300
+#define GOTIME 800
+#define STOPTIME 5000
+```
+
+Notice that I had to change the calibration factor for the spins. I also realized that these values are heavily dependent on battery charge as well; I used a fully charged battery to get these values. Below is a video of the slowest turn possible. You can again see the difference between the first/second/fourth turns and the third turn. The third turn is really choppy and slow, but the signals I'm sending to the motors are the same. So even though it may seem like the first, second, and fourth movements are a bit fast and there is some room to go lower, there really isn't.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/tMGkvIxV95k?si=6orx_eqkPdRV1j0T" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 
 ### `analogWrite()` Frequency Discussion (_Task 11_)
 
@@ -154,3 +276,5 @@ Finally, we add some turns to the video from the previous task to complete our d
 
 ## Acknowledgements
 
+* Sophia Lin (Lab Partner)
+* Hang Gao (helping me in office hours with debugging and giving hints)
