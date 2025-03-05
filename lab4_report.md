@@ -191,7 +191,7 @@ void loop() {
 
 Here is a video demonstrating that the robot can drive in an approximately straight line for 6 feet:
 
-**ADD VIDEO TOMORROW**
+<iframe width="560" height="315" src="https://www.youtube.com/embed/YrqN82caCsw?si=XVieW7YADhPRJ6c0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 You can see that the car is very inconsistent! I didn't change the signals sent to the motors between the first forward-and-back movement, and the second forward-and-back movement. Yet, the car exhibits very different behavior on the two runs, as is typical for open-loop control and relatively inexpensive / imprecise hardware. On the second forward movement, the car went approximately straight for 6 feet.
 
@@ -199,7 +199,7 @@ You can see that the car is very inconsistent! I didn't change the signals sent 
 
 Finally, we add some turns to the video from the previous task to complete our demonstration of open-loop, untethered control of the robot:
 
-**ADD VIDEO TOMORROW**
+<iframe width="560" height="315" src="https://www.youtube.com/embed/bbIwPFQnjbI?si=nffG9J5WOOswKxqC" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Lower Limit PWM (_Task 8, Task 12_)
 
@@ -285,7 +285,7 @@ As for whether or not this is adequately fast to control the motors, we know tha
 
 If we assume that the frequency response of this motor can be approximated as a single-pole system, then the cutoff frequency is approximately 1/tau, where tau is the time constant of the step response of the motor while on the ground. We can try to estimate this frequency by listening to the video of the car on the ground:
 
-**attach open loop drive straight video here**
+<iframe width="560" height="315" src="https://www.youtube.com/embed/YrqN82caCsw?si=XVieW7YADhPRJ6c0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 From the sound that the motors are making, it seems like the car takes about 0.25 seconds to get up to speed. Let's further estimate that the rise time of the system is about 0.2 seconds. Then, the time constant is given by tr = 2.197 * tau, so tau is about 0.09 seconds. This gives a 3 dB frequency of 1/tau = 11 Hz, meaning that the motor cannot respond to control inputs well faster than this. That means that our PWM frequency of 182 Hz is more than sufficient to control this motor. Of course, this math was extremely hand-wavy, but if the PWM frequency is more than order of magnitude above our estimate of 3 dB frequency for this motor, it's probably safe to assume that PWM frequency is high enough that pushing it higher won't make much of a difference in the controllability of the motor.
 
