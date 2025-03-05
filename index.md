@@ -29,3 +29,6 @@ Click on the images to navigate to the lab report!
 
 [![lab4_thumbnail](images/lab4/lab4_thumbnail.jpg)](./lab4_report.html "Lab 4 Report")
 
+## Lab 5 - PID Control (Part 1)
+
+[![lab5_thumbnail](images/lab5/lab5_thumbnail.png)](./lab5_report.html "Lab 5 Report")
