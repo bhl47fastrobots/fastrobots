@@ -27,6 +27,7 @@ In `handle_command()`, I added these `case` sections:
 case START_PID_MVMT:
     run_pid_loop = true;
     ctrl_start_time = millis();
+    integral = 0;
 
     break;
 
@@ -77,7 +78,7 @@ case SEND_PID_LOGS:
       break;
 ```
 
-Notice that the `START_PID_MVMT` command has the additional command of noting the start time of the movement (to be used during the PID movement to drive forward blindly until we are within sensing distance of the wall). Additionally, the `STOP_PID_MVMT` stops the motors at the end of the movement so that the robot doesn't continue to move once the PID movement has ended.
+Notice that the `START_PID_MVMT` command has a line of code which notes the start time of the movement (to be used during the PID movement to drive forward blindly until we are within sensing distance of the wall), and another line of code that resets the integral value for the PID controller. Additionally, the `STOP_PID_MVMT` stops the motors at the end of the movement so that the robot doesn't continue to move once the PID movement has ended.
 
 The `SEND_PID_LOGS` command sends back the ToF sensor readings as well as the output of the PID control loop. This is **NOT** the PWM signal sent to the motors, as there is some extra processing needed for that. This is simply the output of the PID control loop.
 
@@ -287,7 +288,7 @@ while (central.connected()) {
 
 ### Implementation of `straight()`
 
-Notice that the output of the PID control loop in the `run_pid()` function above is used as the argument to the function `straight()` to drive the robot at the specified speed. However, the output of the controller cannot be directly applied to the PWM pins of the motors! First, the controller output is a floating-point number; `analogWrite()` takes integers only. We also want to offset the controller output by the `DEADBAND` so that the PID control output actually drives the robot forward and backward (instead of being unable to overcome static friction and probably having to use a large `KI` value to compensate -- thus increasing overshoot). Finally, the output of the controller is both positive and negative, so we need to translate the sign of the output into which control pins we actually drive our motors with. Below is the implemtation of `straight()` that accounts for all of the aforementioned issues:
+Notice that the output of the PID control loop in the `run_pid()` function above is used as the argument to the function `straight()` to drive the robot at the specified speed. However, the output of the controller cannot be directly applied to the PWM pins of the motors! First, the controller output is a floating-point number; `analogWrite()` takes integers only. We also want to offset the controller output by the `DEADBAND` so that the PID control output actually drives the robot forward and backward (instead of being unable to overcome static friction and probably having to use a large `KI` value to compensate -- thus increasing overshoot). Finally, the output of the controller is both positive and negative, so we need to translate the sign of the output into which control pins we actually drive our motors with. Below is the implementation of `straight()` that accounts for all of the aforementioned issues:
 
 ```cpp
 /*
@@ -324,9 +325,116 @@ void straight(float pwm) {
 }
 ```
 
-Notice that we also take into acount the `DEADBAND`.
+Notice that we also take into acount the `DEADBAND` the `CALIB_FAC` estiamted from Lab 4.
 
 ### PID Controller Tuning
+
+I went about this in two steps. First, I tuned the PID controller so that the robot would settle as fast as possible without running into the wall with the robot starting within range of the ToF sensor. Then, I came up with a way to drive the robot blindly forward until the ToF sensor data is valid so that I can start the robot farther than the ToF sensor's short range can detect and still get the desired behavior.
+
+Since I want the PID controller to kick in at around the limit of the ToF sensor's short range (around 100 cm) and our goal is to stop 30 cm away from the wall, the error is around 70 cm, and I want the car's motors to have a PWM of about 200 at this point. Factoring in the deadband of 40, the control output should be 160 in this case. Thus, if control output = KP * error, then KP = (control output) / error, which is approximately 2.3. 
+
+I went about tuning the controller as follows:
+
+1. Start with all three tuning constants equal to 0
+2. Increase KP until I see a couple of oscillations
+3. Set KP to half of the value from step 1
+4. Increase KI until the steady-state error is gone and there are again a couple of oscillations
+5. Increase KD until the oscillations are smoothed out
+
+The values I arrived at are shown in the screenshot below:
+
+![pid_tuned_gains](images/lab5/pid_tuned_gains.png)
+
+I also tried to emulate the following animation of my response when tuning to get that nice critically damped response that we want to see:
+
+![pid_tuning_animation](images/lab5/pid_tuning_animation.gif)
+
+And here is a video of the robot driving towards the wall with these gains:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/H6YxkUAzsO4?si=z6nAZ2FhHusqAKt4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Here is the plot of the associated data:
+
+![pid_tuned_gains](images/lab5/pid_tuned_data_screenshot.png)
+
+Note that there is no steady-state error, and that there are no oscillations about the reference. From the video and from the plot, you can see that the settling time for a starting position of around 120 cm is a little over 1 second -- pretty good!
+
+I implemented the following features in my PID controller in order to get this behavior, on top of the basic PID implementation shown in the Prelab section of this report:
+
+* Integral Windup Protection
+* Derivative Low-Pass Filter (protect against derivative kick, and to smooth out the highly-noise-susceptible derivative term)
+* Normalized derivative and integral calculations to time (integral in units of cm*s and derivative in units of cm/s), so that I don't need to re-tune the controller when the control loop frequency is increased in the later portions of the lab
+
+These were implemented as follows:
+
+```cpp
+// ************************ GLOBAL VARIABLES *********************** //
+
+// tuning constants
+float KP = 0.0;
+float KI = 0.0;
+float KD = 0.0;
+
+#define CALIB_FAC 0.7
+#define DEADBAND 40
+#define SETPOINT 30.5
+#define MAX_INTEGRAL 30.0
+
+float integral = 0.0;
+float prev_err = 0.0;
+float deriv = 0.0;
+float deriv_lpf_alpha = 0.5; // derivative low-pass-filter alpha
+
+// ************************* PID ALGORITHM ************************ //
+
+void run_pid() {
+    // calculate error
+    float err = (tof_arr_ix == 0) ? 0.0 : tof_data_two[tof_arr_ix - 1] - SETPOINT;
+    float p = 0.0, i = 0.0, d = 0.0, tot = 0.0;
+    float curr_deriv = 0.0;
+    unsigned long curr_time = millis();
+    // time step between this control update and previous one, in seconds
+    float dt = (ctrl_arr_ix == 0) ? 0.0 : (float)(curr_time - ctrl_times[ctrl_arr_ix - 1]) / 1000.0;
+
+    // calculate p term
+    p = KP * err;
+
+    // calculate i term (rectangular riemann sum)
+    // skip if integral is over max integral and we are adding on more with the same sign
+    if (!(integral > MAX_INTEGRAL && abs(integral) < abs(integral + err))) {
+        integral += err * dt;
+    }
+    // reset the integral on the zero crossing to get rid of windup
+    if (prev_err * err < 0.0) {
+        integral = 0.0;
+    }
+    i = KI * integral;
+
+    // calculate d term
+    curr_deriv = (ctrl_arr_ix == 0) ? 0.0 : (err - prev_err) / dt;
+    deriv = (deriv_lpf_alpha) * curr_deriv + (1.0 - deriv_lpf_alpha) * deriv; // low-pass filter implementation
+    d = KD * deriv;
+    prev_err = err;
+
+    // sum the three to get the total input
+    tot = p + i + d;
+
+    // send the control action to the wheels
+    straight(tot);
+
+    // log the control output if space in array
+    if (ctrl_arr_ix < ctrl_log_size) {
+        ctrl_output[ctrl_arr_ix] = tot;
+        p_output[ctrl_arr_ix] = p;
+        i_output[ctrl_arr_ix] = i;
+        d_output[ctrl_arr_ix] = d;
+        ctrl_times[ctrl_arr_ix] = curr_time;
+        ctrl_arr_ix++;
+    }
+}
+```
+
+### Variable Starting Distance
 
 
 
