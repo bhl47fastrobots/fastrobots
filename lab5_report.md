@@ -235,7 +235,7 @@ while (central.connected()) {
 
 ### Implementation of `straight()`
 
-The PID control loop outputs a continuous number which should translate to a desired speed of the robot, in "PWM units". However, the output of the controller cannot be directly applied to the PWM pins of the motors! First, the controller output is a floating-point number; `analogWrite()` takes integers only. We also want to offset the controller output by the `DEADBAND` so that the PID control output actually drives the robot forward and backward (instead of being unable to overcome static friction and probably having to use a large `KI` value to compensate -- thus increasing overshoot). Finally, the output of the controller is both positive and negative, so we need to translate the sign of the output into which control pins we actually drive our motors with. Below is the implementation of a function called `straight()` that translates the control loop output into actual PWM signals for the pins that drive the motors, and which accounts for all of the aforementioned issues:
+The PID control loop outputs a continuous number which should translate to a desired speed of the robot, in "PWM units". However, the output of the controller cannot be directly applied to the PWM pins of the motors! First, the controller output is a floating-point number; `analogWrite()` takes integers only. We also want to offset the controller output by the `DEADBAND` so that the PID control output actually drives the robot forward and backward (instead of being unable to overcome static friction and probably having to use a large `KI` value to compensate -- thus increasing overshoot). Finally, the output of the controller can be either positive and negative, so we need to translate the sign of the output into which control pins we actually drive our motors with. Below is the implementation of a function called `straight()` that translates the control loop output into actual PWM signals for the pins that drive the motors, and which accounts for all of the aforementioned issues:
 
 ```cpp
 /*
@@ -512,12 +512,24 @@ Notice that the extrapolated ToF sensor values line up well with the actual valu
 
 ### Different Surfaces / Windup Protection
 
+I implemented windup protection already in the previous parts, so I did not need to implement any new code in this section. However, to show that the integral action is working and the control can compensate for different steady-state static friction forces on the vehicle, I performed the same drive on a carpeted surface. Here is the video:
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/4tPowc7xiMQ?si=LBo1Ax_xgP30D40t" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Here is the plot of the associated data from the run shown in the video:
+
+![pid_tuned_extrap_carpet](images/lab5/pid_tuned_extrap_carpet.png)
+
+Here is what the control looks like without the windup protection, for comparison:
+
+**INSERT VIDEO HERE**
 
 ### Variable Starting Distance
 
 Finally, to get the car to drive toward the wall from greater than the ToF sensor's "short" range, I put the ToF sensor in "long" range mode and drove the robot forward quickly until the "long" range gave me a reading that is just on the border of the "short" range (around 150 cm). Then, I switched the ToF sensor from "long" to "short" range, and then started the PID control loop as before. Another way to look at it is that I implemented a coarse control algorithm (essentially bang-bang control) when the robot is far from the desired setpoint, followed by a much more precise algorithm (the PID controller) to get the robot exactly to the setpoint once we are close.
 
+
+
 ## Acknowledgements
 
-XD
+* [Wikipedia article on PID control](https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller) for the PID controller gain GIF visualizer, which was very helpful when tuning the controller
