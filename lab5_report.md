@@ -447,9 +447,72 @@ Recall that the movement was 2 seconds long. Therefore, the ToF sensor was opera
 
 ### Data Extrapolation
 
+To do data extrapolation, we write the following function on the Arduino side:
+
+```cpp
+float extrap_tof_data[ctrl_log_size]; // ADD THIS GLOBAL VARIABLE
+
+void calculate_tof_data (unsigned long curr_time) {
+    // take care of edge cases when we have no data points or one data point from ToF
+    if (tof_arr_ix == 0) {
+        // if we have received no data points yet, pretend we're reading the setpoint
+        extrap_tof_data[ctrl_arr_ix] = SETPOINT;
+    } else if (tof_arr_ix == 1) {
+        // if we have only one data point, there is nothing to extrapolate, so just set them equal
+        extrap_tof_data[ctrl_arr_ix] = tof_data_two[0];
+    } else {
+        // otherwise, we can calculate a slope and a time elapsed since the last update,
+        // and use that to extrapolate
+        float rise = tof_data_two[tof_arr_ix - 1] - tof_data_two[tof_arr_ix - 2];
+        float run = ((float)(tof_times[tof_arr_ix - 1] - tof_times[tof_arr_ix - 2])) / 1000000.0; // in secs
+        float slope = rise / run; // in cm/sec
+        float elapsed_time = ((float)(curr_time - tof_times[tof_arr_ix - 1])) / 1000000.0; // in secs
+        extrap_tof_data[ctrl_arr_ix] = tof_data_two[tof_arr_ix - 1] + (slope * elapsed_time);
+    }
+}
+```
+
+This function calculates and estimate for what the ToF sensor value would be at the current time using linear extrapolation, if there are more than two data points available. It also handles edge cases at the start of the movement.
+
+The beginning of the PID algorithm function also needs to be modified slightly:
+
+```cpp
+void run_pid() {
+    unsigned long curr_time = micros();
+
+    // get extrapolated tof data
+    calculate_tof_data(curr_time);
+
+    // calculate error using extrapolated tof data
+    float err = extrap_tof_data[ctrl_arr_ix] - SETPOINT;
+    float p = 0.0, i = 0.0, d = 0.0, tot = 0.0;
+    float curr_deriv = 0.0;
+    // time step between this control update and previous one, in seconds
+    float dt = (ctrl_arr_ix == 0) ? 0.0 : (float)(curr_time - ctrl_times[ctrl_arr_ix - 1]) / 1000000.0;
+
+    // the rest of the function is the same ...
+}
+```
+
+You'll notice that I had to divide the timestamps by 1,000,000 instead of 1,000. This is because I had to change all of the timestamps to microseconds instead of milliseconds; the loop was going so fast that the `dt` variable was zero, so when we tried to compute the derivative as `(err - prev_error) / dt`, the code would error. Using `micros()` instead of `millis()` allows us to gain some extra resolution and avoid getting a divide by zero error.
+
+I also had to lower the alpha value for the derivative low-pass-filter by a significant amount, as each time the ToF sensor gave a new update, there would be a spike in the derivative. This is because the extrapolated ToF data had been drifting farther from the true value throughout the entire update period; when the sensor finally updates, the extrapolated ToF data value is suddenly "pulled back in" to the real sensor value, resulting in a large difference in sensor reading over a very short difference in time (i.e. high derivative).
+
+However, I barely had to adjust the PID controller gains to get this to work as well. Here is the video of the robot driving towards the wall using the extrapolated sensor values:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/-F1KYKHTE6Y?si=nXpmYTcvyV7YcFz0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Here is the plot of the associated data from the run shown in the video:
+
+![pid_tuned_extrap_hardwood](images/lab5/pid_tuned_extrap_hardwood.png) 
+
+Notice that the extrapolated ToF sensor values line up well with the actual values. It's a bit hard to see the extrapolation working; here is a plot of just the first 0.5 seconds which shows the matchup better:
+
+![extrapolation_zoom](images/lab5/extrapolation_zoom.png)
+
+### Different Surfaces / Windup Protection
 
 
-### Different Surfaces
 
 ### Variable Starting Distance
 
