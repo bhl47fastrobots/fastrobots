@@ -194,56 +194,13 @@ ble.send_command(CMD.SET_TUNING_CONSTS, "4.0|0.3|2.0")
 
 ## Lab Tasks
 
-### PID Loop Implementation
+### PID Control Update Insertion
 
-To implement the algorithm, I introduced the following global variables and constants:
-
-```cpp
-// tuning constants
-float KP = 4.0;
-float KI = 0.0;
-float KD = 0.0;
-
-#define CALIB_FAC 0.7
-#define DEADBAND 40
-#define SETPOINT 30.5
-
-
-float integral = 0.0;
-float prev_err = 0.0;
-```
-
-The `DEADBAND` was found in Lab 4. I implemented the basic PID control algorithm as follows:
+The PID algorithm was implemented in a function called `run_pid()` (the implementation details will be discussed later in the report): 
 
 ```cpp
 void run_pid() {
-    // calculate error
-    float err = (tof_arr_ix == 0) ? 0.0 : tof_data_two[tof_arr_ix - 1] - SETPOINT;
-    float p = 0.0, i = 0.0, d = 0.0, tot = 0.0;
-
-    // calculate p term
-    p = KP * err;
-
-    // calculate i term
-    integral += err;
-    i = KI * err;
-
-    // calculate d term
-    d = KD * (err - prev_err);
-    prev_err = err;
-
-    // sum the three to get the total input
-    tot = p + i + d;
-
-    // send the control action to the wheels
-    straight(tot);
-
-    // log the control output if space in array
-    if (ctrl_arr_ix < ctrl_log_size) {
-        ctrl_output[ctrl_arr_ix] = tot;
-        ctrl_times[ctrl_arr_ix] = millis();
-        ctrl_arr_ix++;
-    }
+    // PID algorithm implementation ...
 }
 ```
 
@@ -261,21 +218,10 @@ while (central.connected()) {
             // if first measurement, simply start a measurement
             // else, if sensor(s) has/have data ready, take measurement(s) and record, and start a new measurement(s)
             if (tof_arr_ix == -1) {
-                myTOF1.startRanging();
-                myTOF2.startRanging();
+                // same as Lab 4; see that report for details
                 tof_arr_ix++;
             } else if (myTOF1.checkForDataReady() && myTOF2.checkForDataReady()) {
-                tof_data_one[tof_arr_ix] = ((float) myTOF1.getDistance()) / 10.0;
-                tof_data_two[tof_arr_ix] = ((float) myTOF2.getDistance()) / 10.0;
-                tof_times[tof_arr_ix] = millis();
-
-                myTOF1.clearInterrupt();
-                myTOF1.stopRanging();
-                myTOF1.startRanging();
-
-                myTOF2.clearInterrupt();
-                myTOF2.stopRanging();
-                myTOF2.startRanging();
+                // same as Lab 4; see that report for details
 
                 tof_arr_ix++;
 
@@ -288,7 +234,7 @@ while (central.connected()) {
 
 ### Implementation of `straight()`
 
-Notice that the output of the PID control loop in the `run_pid()` function above is used as the argument to the function `straight()` to drive the robot at the specified speed. However, the output of the controller cannot be directly applied to the PWM pins of the motors! First, the controller output is a floating-point number; `analogWrite()` takes integers only. We also want to offset the controller output by the `DEADBAND` so that the PID control output actually drives the robot forward and backward (instead of being unable to overcome static friction and probably having to use a large `KI` value to compensate -- thus increasing overshoot). Finally, the output of the controller is both positive and negative, so we need to translate the sign of the output into which control pins we actually drive our motors with. Below is the implementation of `straight()` that accounts for all of the aforementioned issues:
+The PID control loop outputs a continuous number which should translate to a desired speed of the robot, in "PWM units". However, the output of the controller cannot be directly applied to the PWM pins of the motors! First, the controller output is a floating-point number; `analogWrite()` takes integers only. We also want to offset the controller output by the `DEADBAND` so that the PID control output actually drives the robot forward and backward (instead of being unable to overcome static friction and probably having to use a large `KI` value to compensate -- thus increasing overshoot). Finally, the output of the controller is both positive and negative, so we need to translate the sign of the output into which control pins we actually drive our motors with. Below is the implementation of a function called `straight()` that translates the control loop output into actual PWM signals for the pins that drive the motors, and which accounts for all of the aforementioned issues:
 
 ```cpp
 /*
@@ -324,14 +270,13 @@ void straight(float pwm) {
     }   
 }
 ```
+`DEADBAND` and `CALIB_FAC` were found in Lab 4.
 
-Notice that we also take into acount the `DEADBAND` the `CALIB_FAC` estiamted from Lab 4.
-
-### PID Controller Tuning
+### PID Controller Implementation and Tuning
 
 I went about this in two steps. First, I tuned the PID controller so that the robot would settle as fast as possible without running into the wall with the robot starting within range of the ToF sensor. Then, I came up with a way to drive the robot blindly forward until the ToF sensor data is valid so that I can start the robot farther than the ToF sensor's short range can detect and still get the desired behavior.
 
-Since I want the PID controller to kick in at around the limit of the ToF sensor's short range (around 100 cm) and our goal is to stop 30 cm away from the wall, the error is around 70 cm, and I want the car's motors to have a PWM of about 200 at this point. Factoring in the deadband of 40, the control output should be 160 in this case. Thus, if control output = KP * error, then KP = (control output) / error, which is approximately 2.3. 
+Since I want the PID controller to kick in at around the limit of the ToF sensor's short range (around 100 cm) and our goal is to stop 30 cm away from the wall, the error is around 70 cm, and I want the car's motors to have a PWM of about 200 at this point. Considering that our deadband is 40, the control output should be 200 - 40 = 160 in this condition. Thus, if control output = KP * error, then KP = (control output) / error, which is approximately 2.3. 
 
 I went about tuning the controller as follows:
 
@@ -341,25 +286,25 @@ I went about tuning the controller as follows:
 4. Increase KI until the steady-state error is gone and there are again a couple of oscillations
 5. Increase KD until the oscillations are smoothed out
 
-The values I arrived at are shown in the screenshot below:
-
-![pid_tuned_gains](images/lab5/pid_tuned_gains.png)
-
 I also tried to emulate the following animation of my response when tuning to get that nice critically damped response that we want to see:
 
 ![pid_tuning_animation](images/lab5/pid_tuning_animation.gif)
 
-And here is a video of the robot driving towards the wall with these gains:
+The values I arrived at are shown in the screenshot below:
+
+![pid_tuned_gains](images/lab5/pid_tuned_gains.png)
+
+Here is a video of the robot driving towards the wall with these gains:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/H6YxkUAzsO4?si=z6nAZ2FhHusqAKt4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Here is the plot of the associated data:
+Here is the plot of the associated data from the run shown in the video:
 
 ![pid_tuned_gains](images/lab5/pid_tuned_data_screenshot.png)
 
 Note that there is no steady-state error, and that there are no oscillations about the reference. From the video and from the plot, you can see that the settling time for a starting position of around 120 cm is a little over 1 second -- pretty good!
 
-I implemented the following features in my PID controller in order to get this behavior, on top of the basic PID implementation shown in the Prelab section of this report:
+I implemented the following features in my PID controller in order to get this behavior:
 
 * Integral Windup Protection
 * Derivative Low-Pass Filter (protect against derivative kick, and to smooth out the highly-noise-susceptible derivative term)
