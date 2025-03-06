@@ -230,6 +230,7 @@ while (central.connected()) {
             }
         }
     }
+}
 ```
 
 ### Implementation of `straight()`
@@ -290,7 +291,7 @@ I also tried to emulate the following animation of my response when tuning to ge
 
 ![pid_tuning_animation](images/lab5/pid_tuning_animation.gif)
 
-The values I arrived at are shown in the screenshot below:
+I ended up using all 3 branches of the PID controller: P to do bulk correction, I to compensate for steady-state error, and D to remove oscillations. The values I arrived at are shown in the screenshot below:
 
 ![pid_tuned_gains](images/lab5/pid_tuned_gains.png)
 
@@ -300,7 +301,7 @@ Here is a video of the robot driving towards the wall with these gains:
 
 Here is the plot of the associated data from the run shown in the video:
 
-![pid_tuned_gains](images/lab5/pid_tuned_data_screenshot.png)
+![pid_tuned_data](images/lab5/pid_tuned_data.png)
 
 Note that there is no steady-state error, and that there are no oscillations about the reference. From the video and from the plot, you can see that the settling time for a starting position of around 120 cm is a little over 1 second -- pretty good!
 
@@ -379,9 +380,80 @@ void run_pid() {
 }
 ```
 
+### Increasing Control Loop Frequency
+
+To increase the control loop frequency, we have to decouple the call to `read_pid()` and the updates to the ToF sensors. We can do this by moving the call to `read_pid()` out of the `if` statement that checks for whether the ToF sensors has new data:
+
+```cpp
+// While central is connected
+while (central.connected()) {
+    
+    // if want to run pid loop
+    if (run_pid_loop) {
+
+        // if space in the TOF sensor array
+        if (tof_arr_ix < tof_log_size) {
+            // if first measurement, simply start a measurement
+            // else, if sensor(s) has/have data ready, take measurement(s) and record, and start a new measurement(s)
+            if (tof_arr_ix == -1) {
+                // same as Lab 4; see that report for details
+                tof_arr_ix++;
+            } else if (myTOF1.checkForDataReady() && myTOF2.checkForDataReady()) {
+                // same as Lab 4; see that report for details
+
+                tof_arr_ix++;
+                // <--------- WAS HERE BEFORE --------
+            }
+        }
+        // run the PID controller / send new pwms to the robot <------ MOVE CALL HERE --------
+        run_pid();
+    }
+}
+```
+
+In the `read_pid()` function, we have to adjust a few lines of code to make sure we're still calculating the change in time for the derivative and integral, but otherwise, the code is basically the same:
+
+```cpp
+void run_pid() {
+    // calculate error
+    float err = (tof_arr_ix == 0) ? 0.0 : tof_data_two[tof_arr_ix - 1] - SETPOINT;
+    float prev_err = (tof_arr_ix <= 1) ? 0.0 : tof_data_two[tof_arr_ix - 2] - SETPOINT; // <------ this line changed
+    float p = 0.0, i = 0.0, d = 0.0, tot = 0.0;
+    float curr_deriv = 0.0;
+    unsigned long curr_time = millis();
+    // time step between this control update and previous one, in seconds
+    float integ_dt = (ctrl_arr_ix == 0) ? 0.0 : (float)(curr_time - ctrl_times[ctrl_arr_ix - 1]) / 1000.0; // <--- need separate dt for integral and derivative
+    float deriv_dt = (tof_arr_ix == 0) ? 0.0 : (float)(tof_times[tof_arr_ix - 1] - tof_times[tof_arr_ix - 2]) / 1000.0;
+
+    // the rest of the function is the same ...
+}
+```
+
+Since the loop runs so much faster now, it also generates a lot more data, so I reduced the time that we are running the loop from 5 seconds to 2 seconds, especially now that the controller is tuned and we know it settles around 1 second. Using the same gains as in the previous part, here is a video of the robot driving towards the wall with the faster control loop:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/i8L1XjHiMtA?si=_ifcGJa7wazwAI2k" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Here is the plot of the associated data from the run shown in the video:
+
+![pid_tuned_faster_loop_data](images/lab5/pid_tuned_faster_loop_data.png)
+
+To see how much faster the control loop is running relative to the ToF sensor update, we print out the lengths of the arrays in Python:
+
+![loop_speed_comparison](images/lab5/loop_speed_comparison.png)
+
+Recall that the movement was 2 seconds long. Therefore, the ToF sensor was operating at around 20 Hz (as found in Lab 3), and the control loop was operating at around 300 Hz. This is a significant speedup!
+
+**An important note:** Since the loop was sped up by 15x compared to before (20 Hz to 300 Hz), the alpha value for the derivative low-pass-filter also needed to be changed. Originally, alpha was 0.5, but since we are essentially applying the filter 15 times per ToF sensor update cycle, we choose a new alpha equal to the 15th root of 0.5, or about 0.955. 
+
+### Data Extrapolation
+
+
+
+### Different Surfaces
+
 ### Variable Starting Distance
 
-
+Finally, to get the car to drive toward the wall from greater than the ToF sensor's "short" range, I put the ToF sensor in "long" range mode and drove the robot forward quickly until the "long" range gave me a reading that is just on the border of the "short" range (around 150 cm). Then, I switched the ToF sensor from "long" to "short" range, and then started the PID control loop as before. Another way to look at it is that I implemented a coarse control algorithm (essentially bang-bang control) when the robot is far from the desired setpoint, followed by a much more precise algorithm (the PID controller) to get the robot exactly to the setpoint once we are close.
 
 ## Acknowledgements
 
