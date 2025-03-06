@@ -4,7 +4,7 @@ In this lab, we implemented a PID control loop to control the robot's distance t
 
 ## Prelab
 
-## Logging Mechanism for PID Tuning
+### Logging Mechanism for PID Tuning
 
 In this prelab, we were asked to implement a logging mechanism that will be useful for visualizing the performance of our PID controller on the computer. To do this, I implemented it very similarly to Labs 2 and 3 when I was doing sensor characterizations. I made three commands: `START_PID_MVMT`, `STOP_PID_MVMT`, and `SEND_PID_LOGS`. The first two simply set a flag to run the PID controller loop to be `true` or `false`, as well as a couple additional small initialization and ending procedures. The third command sends back all of the log data over Bluetooth to the computer for processing and visualization. To execute PID for a fixed time, I simply waited a certain number of seconds between calling `START_PID_MVMT` and `STOP_PID_MVMT` in the Python code.
 
@@ -157,7 +157,7 @@ Here is an example plot of the control data from a run that I did:
 
 ![prelab_debugging_example](images/lab5/prelab_debugging_example.png)
 
-## Setting Tuning Constants
+### Setting Tuning Constants
 
 To be able to update the tuning constants over Bluetooth (instead of re-programming the Artemis each time), I implemented a new command `SET_TUNING_CONSTS`, which is very similar to the `SEND_THREE_FLOATS` command implemented in Lab 1. On the Arduino side:
 
@@ -193,7 +193,142 @@ ble.send_command(CMD.SET_TUNING_CONSTS, "4.0|0.3|2.0")
 
 ## Lab Tasks
 
-hello
+### PID Loop Implementation
+
+To implement the algorithm, I introduced the following global variables and constants:
+
+```cpp
+// tuning constants
+float KP = 4.0;
+float KI = 0.0;
+float KD = 0.0;
+
+#define CALIB_FAC 0.7
+#define DEADBAND 40
+#define SETPOINT 30.5
+
+
+float integral = 0.0;
+float prev_err = 0.0;
+```
+
+The `DEADBAND` was found in Lab 4. I implemented the basic PID control algorithm as follows:
+
+```cpp
+void run_pid() {
+    // calculate error
+    float err = (tof_arr_ix == 0) ? 0.0 : tof_data_two[tof_arr_ix - 1] - SETPOINT;
+    float p = 0.0, i = 0.0, d = 0.0, tot = 0.0;
+
+    // calculate p term
+    p = KP * err;
+
+    // calculate i term
+    integral += err;
+    i = KI * err;
+
+    // calculate d term
+    d = KD * (err - prev_err);
+    prev_err = err;
+
+    // sum the three to get the total input
+    tot = p + i + d;
+
+    // send the control action to the wheels
+    straight(tot);
+
+    // log the control output if space in array
+    if (ctrl_arr_ix < ctrl_log_size) {
+        ctrl_output[ctrl_arr_ix] = tot;
+        ctrl_times[ctrl_arr_ix] = millis();
+        ctrl_arr_ix++;
+    }
+}
+```
+
+This function is called in the main loop each time we update the ToF sensor data:
+
+```cpp
+// While central is connected
+while (central.connected()) {
+    
+    // if want to run pid loop
+    if (run_pid_loop) {
+
+        // if space in the TOF sensor array
+        if (tof_arr_ix < tof_log_size) {
+            // if first measurement, simply start a measurement
+            // else, if sensor(s) has/have data ready, take measurement(s) and record, and start a new measurement(s)
+            if (tof_arr_ix == -1) {
+                myTOF1.startRanging();
+                myTOF2.startRanging();
+                tof_arr_ix++;
+            } else if (myTOF1.checkForDataReady() && myTOF2.checkForDataReady()) {
+                tof_data_one[tof_arr_ix] = ((float) myTOF1.getDistance()) / 10.0;
+                tof_data_two[tof_arr_ix] = ((float) myTOF2.getDistance()) / 10.0;
+                tof_times[tof_arr_ix] = millis();
+
+                myTOF1.clearInterrupt();
+                myTOF1.stopRanging();
+                myTOF1.startRanging();
+
+                myTOF2.clearInterrupt();
+                myTOF2.stopRanging();
+                myTOF2.startRanging();
+
+                tof_arr_ix++;
+
+                // run the PID controller / send new pwms to the robot <------ CODE ADDED HERE --------
+                run_pid();
+            }
+        }
+    }
+```
+
+### Implementation of `straight()`
+
+Notice that the output of the PID control loop in the `run_pid()` function above is used as the argument to the function `straight()` to drive the robot at the specified speed. However, the output of the controller cannot be directly applied to the PWM pins of the motors! First, the controller output is a floating-point number; `analogWrite()` takes integers only. We also want to offset the controller output by the `DEADBAND` so that the PID control output actually drives the robot forward and backward (instead of being unable to overcome static friction and probably having to use a large `KI` value to compensate -- thus increasing overshoot). Finally, the output of the controller is both positive and negative, so we need to translate the sign of the output into which control pins we actually drive our motors with. Below is the implemtation of `straight()` that accounts for all of the aforementioned issues:
+
+```cpp
+/*
+ * Sends the requested speed in pwm units to the motors, 
+ * with an offset of the DEADBAND defined above
+ */
+void straight(float pwm) {
+    const float stoprange = 3.0;
+    int adjusted_pwm_one = 0;
+    int adjusted_pwm_two = 0;
+
+    if (abs(pwm) < stoprange) {
+        analogWrite(MTR1_IN1, 0);
+        analogWrite(MTR1_IN2, 0);
+        analogWrite(MTR2_IN1, 0);
+        analogWrite(MTR2_IN2, 0);
+    } else if (pwm >= stoprange) {
+        adjusted_pwm_one = (int) (pwm * CALIB_FAC + DEADBAND + 0.5);
+        adjusted_pwm_two = (int) (pwm + DEADBAND + 0.5);
+
+        analogWrite(MTR1_IN1, adjusted_pwm_one);
+        analogWrite(MTR1_IN2, 0);
+        analogWrite(MTR2_IN1, 0);
+        analogWrite(MTR2_IN2, adjusted_pwm_two);
+    } else {
+        adjusted_pwm_one = (int) (pwm * -1.0 * CALIB_FAC + DEADBAND + 0.5);
+        adjusted_pwm_two = (int) (pwm * -1.0 + DEADBAND + 0.5);
+
+        analogWrite(MTR1_IN1, 0);
+        analogWrite(MTR1_IN2, adjusted_pwm_one);
+        analogWrite(MTR2_IN1, adjusted_pwm_two);
+        analogWrite(MTR2_IN2, 0);
+    }   
+}
+```
+
+Notice that we also take into acount the `DEADBAND`.
+
+### PID Controller Tuning
+
+
 
 ## Acknowledgements
 
