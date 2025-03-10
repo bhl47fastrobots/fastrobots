@@ -411,7 +411,7 @@ while (central.connected()) {
 }
 ```
 
-In the `read_pid()` function, we have to adjust a few lines of code to make sure we're still calculating the change in time for the derivative and integral, but otherwise, the code is basically the same:
+In the `read_pid()` function, we have to adjust a few lines of code to make sure we're still calculating the change in time for the derivative and integral correctly, but otherwise, the code is basically the same:
 
 ```cpp
 void run_pid() {
@@ -522,13 +522,121 @@ Here is the plot of the associated data from the run shown in the video:
 
 Here is what the control looks like without the windup protection, for comparison:
 
-**INSERT VIDEO HERE**
+<iframe width="560" height="315" src="https://www.youtube.com/embed/72aFryM8XdQ?si=6Ylnxms1RwNQjvMK" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+As you can see, windup protection is needed to stop the integral action from continuing to push the robot away from the setpoint after the robot has crossed the setpoint after spending a large amount of time accumulating a large error on the other side of the setpoint. This usually results in a large amount of overshoot. Ideally, integral action should only take care of the steady-state error; too much integral action during the bulk correction period can cause the too much overshoot and instabilities.
 
 ### Variable Starting Distance
 
-Finally, to get the car to drive toward the wall from greater than the ToF sensor's "short" range, I put the ToF sensor in "long" range mode and drove the robot forward quickly until the "long" range gave me a reading that is just on the border of the "short" range (around 150 cm). Then, I switched the ToF sensor from "long" to "short" range, and then started the PID control loop as before. Another way to look at it is that I implemented a coarse control algorithm (essentially bang-bang control) when the robot is far from the desired setpoint, followed by a much more precise algorithm (the PID controller) to get the robot exactly to the setpoint once we are close.
+Finally, to get the car to drive toward the wall from greater than the ToF sensor's "short" range, I included a new variable `using_pid` which is set to `false` at the start of the movement in the `handle_command()` switch-case statement for `START_PID_MVMT`, a new function `wait_for_in_range()` which simply commands the robot forward at a set value on the ToF long ranging mode until it gets within the short ranging mode. It then sets the `using_pid` flag to `true`, which causes the main loop function to use the `run_pid()` function discussed in the entire preceding part of the lab to get the robot all the way to the setpoint. Here is the relevant code on the Arduino:
 
+```cpp
+// *************** GLOBAL VARIABLE **************** //
+bool using_pid = false;
 
+// range switching
+#define RANGE_SWITCH_THRESH 120
+#define LONG_MODE_SPEED 100
+
+// ************** IN HANDLE_COMMAND ************** //
+
+/*
+ * This command tells the Artemis to start running PID loop
+ */
+case START_PID_MVMT:
+    run_pid_loop = true;
+    ctrl_start_time = micros();
+    integral = 0.0;
+    prev_err = 0.0;
+    using_pid = false; // <-------- NEW LINE -------
+
+    break;
+
+// *************** NEW FUNCTION ****************** //
+
+void wait_for_in_range() {
+    unsigned long curr_time = micros();
+
+    // get extrapolated tof data
+    calculate_tof_data(curr_time);
+
+    float err = extrap_tof_data[ctrl_arr_ix] - SETPOINT;
+    float curr_deriv = 0.0;
+    // time step between this control update and previous one, in seconds
+    float dt = (ctrl_arr_ix == 0) ? 0.0 : (float)(curr_time - ctrl_times[ctrl_arr_ix - 1]) / 1000000.0;
+
+    // calculate derivative to get a little better determination of when to switch to short range
+    curr_deriv = (ctrl_arr_ix == 0) ? 0.0 : (err - prev_err) / dt;
+    // take care of derivative kick:
+    if (prev_err == 0.0) {
+        curr_deriv = 0.0;
+    }
+    deriv = (deriv_lpf_alpha) * curr_deriv + (1.0 - deriv_lpf_alpha) * deriv; // low-pass filter implementation
+    prev_err = err;
+
+    if (extrap_tof_data[ctrl_arr_ix] < RANGE_SWITCH_THRESH && tof_arr_ix >= 2) {
+        myTOF2.setDistanceModeShort();
+        using_pid = true;
+    }
+
+    straight(LONG_MODE_SPEED);
+
+    // log the control output if space in array
+    if (ctrl_arr_ix < ctrl_log_size) {
+        ctrl_output[ctrl_arr_ix] = LONG_MODE_SPEED;
+        p_output[ctrl_arr_ix] = 0.0;
+        i_output[ctrl_arr_ix] = 0.0;
+        d_output[ctrl_arr_ix] = 0.0;
+        ctrl_times[ctrl_arr_ix] = curr_time;
+        ctrl_arr_ix++;
+    }
+}
+
+// ****** IN MAIN LOOP ************* //
+
+// While central is connected
+while (central.connected()) {
+    
+    // if want to run pid loop
+    if (run_pid_loop) {
+
+        /* 
+         * Logic to get new data from the ToF sensors...
+         */
+        
+        // send new pwms to the robot
+        if (using_pid) {
+            run_pid();
+        } else {
+            wait_for_in_range(); // <------- CALL FUNCTION HERE ------
+        }
+    }
+
+    // Send data
+    write_data();
+
+    // Read data
+    read_data();
+}
+```
+
+Here is a video starting at a medium distance:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/1D5ZbGU7qks?si=v2VGp_HvzAvBGe6N" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+And the data associated with this particular run:
+
+![pid_long_range](images/lab5/pid_long_range.png)
+
+And here is a video at the maximum distance I could get out of the long ranging mode with the ambient lighting conditions at my apartment:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/TyLE2nWJDjs?si=HZtTOXwGPjAgViDu" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+And the data associated with this particular run:
+
+![pid_longer_range_with_mode_switch](images/lab5/pid_longer_range_with_mode_switch.png)
+
+You can clearly see that when the ToF sensor returns a distance that is below the mode switching distance, the control switches from a constant output of the `wait_for_in_range()` regime to the changing output of the PID controller.
 
 ## Acknowledgements
 
