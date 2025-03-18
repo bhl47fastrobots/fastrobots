@@ -36,3 +36,7 @@ Click on the images to navigate to the lab report!
 ## Lab 6 - PID Control (Part 2)
 
 [![lab6_thumbnail](images/lab6/lab6_thumbnail.jpg)](./lab6_report.html "Lab 6 Report")
+
+## Lab 7 - Kalman Filter
+
+[![lab7_thumbnail](images/lab7/lab7_thumbnail.png)](./lab7_report.html "Lab 7 Report")
