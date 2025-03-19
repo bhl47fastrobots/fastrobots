@@ -10,8 +10,8 @@ The requirements for the prelab are identical to Lab 5, and I have implemented i
 
 ### PID Input Signal Discussion Questions
 
-1. **Are there problems that digital integration may cause?** Integrating the gyroscope over time will cause issues, as the gyroscope exhibits drift. Since there isn't a way to simply fuse the data from the gyroscope with the accelerometer in the yaw direction (which is what we want), this error will accumulate over time and cause significant problems (probably the robot will turn slowly over time).
-2. **Are there ways to minimize these problems?** Perhaps doing some more complicated sensor fusion (for example, using the centripetal force experienced by the accelerometer when the robot turns about its yaw axis) or incorporating the magnetometer data (which should also detect when the robot turns about the yaw axis) would help to stabilize the integration of the gyroscope data. 
+1. **Are there problems that digital integration may cause?** The gyroscope is not perfectly accurate (i.e. when the robot is not spinning, the average reading from the gyroscope will not be 0 degrees/sec). To get a heading in degrees, we integrate this reading from the gyroscope. Since there is an average offset in the input signal, integrating that signal will cause the integral to slowly drift from the correct value at a constant rate. Since there isn't a simple way to fuse the data from the gyroscope with the accelerometer in yaw (which is what we want), this error will accumulate over time and cause significant problems (the robot will slowly turn over time).
+2. **Are there ways to minimize these problems?** Perhaps doing some more complicated sensor fusion (for example, using the centripetal force experienced by the accelerometer when the robot turns about its yaw axis) or incorporating the magnetometer data (which should also detect when the robot turns about the yaw axis) would help to stabilize the integration of the gyroscope data. We could also add some sort of calibration on the gyroscope and subtract the observed constant offset in the gyroscope reading from every gyroscope data point before integrating. But this solution is not very robust.
 3. **Does sensor have any bias?** Yes, as mentioned above, the gyroscope exhibits some constant bias (i.e. when the IMU is not moving, the gyroscope still says that the robot is rotating).
 4. **How fast does the error grow as a result of the bias?** The gyroscope's constant yaw bias is around 6 degress/sec, as can be seen in my Lab 2 report. When integrating, this is also the rate at which the error grows (around 6 degrees/sec). **I will use the onboard Digital Motion Processor (DMP) to counteract this drift!**
 5. **Are there limitations to the sensor to be aware of?** The gyroscope is by default set to have a maximum spin rate of 250 degrees/sec (dps), as shown in this code snippet from the Arduino library Github:
@@ -35,7 +35,8 @@ Here is a screenshot of the datasheet confirming that there are indeed four diff
 
 1. **Can you process Bluetooth commands while controller is running?** Yes. Nothing in the PID Control function hangs (waits for sensor values or delays), and it is called in the `while` loop that runs when the Bluetooth is connected. My PID control algorithm is written and called in exactly the same way as Lab 5, so I won't repeat it for the sake of brevity here.
 2. **Think about future applications with navigation or stunts. Will you need to be able to update setpoint in real time?** Yes, I will need to be able to update the setpoint in real time. As the robot drives and plans its actions, it'll need to be able to set its desired orientation internally, and the PID control loop will have to execute to get the robot to actually obtain the desired state.
-3. **Can you control the robot's orientation will driving forward and backward?** Yes, I can do this by running the PID control loop for driving straight (Lab 5) simultaneously with the PID control loop for controlling the orientation (Lab 6), and combining the two outputs for the motor directions. 
+3. **Can you control the robot's orientation will driving forward and backward? How would this be implemented?** Yes, I can do this by running the PID control loop for driving straight (Lab 5) simultaneously with the PID control loop for controlling the orientation (Lab 6), and combining the two outputs for the motor directions. 
+4. **How can I make implementing #3 simple in the future?** I can write a general PID algorithm that operates on a set of gains, input data, etc., so that when running the two PID loops simultaneously, I won't need to have two copies of my PID algorithm code. I can write a general `move()` function which can accomodate assymetrical motor speed requests (i.e. the absolute value of the speed commanded to one motor is different from that of the other motor).
 
 ### Orientation PID Control
 
@@ -332,7 +333,7 @@ Some notable observations and comments from these results:
 * However, on the hardwood, having a large integral gain to push the robot all the way to the setpoint becomes a huge problem, since the robot easily overshoots the setpoint on hardwood. We need to add integral windup protection to maintain good performance on the hardwood surface as well. This caps the integral branch to a maximum value, and allows the robot to recover quickly if it has overshot the setpoint.
 * Notice that there is no derivative kick; that is the low-pass-filter on the derivative term in action!
 
-One last note on the code is that we ended up needing to increase the maximum deg/sec that the gyroscope can sense. We did this by adding the following code before the DMP setup in the `setup()` function:
+A final note on the code is that we ended up needing to increase the maximum deg/sec that the gyroscope can sense. We did this by adding the following code before the DMP setup in the `setup()` function:
 
 ```cpp
 // increase the maximum deg/sec gyroscope can sense
@@ -342,6 +343,12 @@ myICM.setFullScale(ICM_20948_Internal_Gyr, myFSS);
 ```
 
 This allowed the robot to accurately spin at full speed while traversing from one setpoint to another. 
+
+Finally, I also measured the sampling rate of the IMU with the DMP, just to ensure that it's a reasonable rate. After running the test for disturbance tests, which lasted 5 seconds, I printed out the length of the arrays of data that were returned by the Artemis. Here is a screenshot:
+
+![sampling_rate](images/lab6/sampling_rate.png)
+
+We can see that we received 286 data points in 5 seconds, which works out to **57 Hz**. This should be fast enough for our purposes (and is certainly much faster than the 15-20 Hz we get from the ToF sensor). We'll notice that the sampling rate is lower than observed in lab 2, and that is because of the extra processing the DMP has to do in order to report new data.
 
 ## Acknowledgements
 
