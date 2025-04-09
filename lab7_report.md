@@ -219,6 +219,7 @@ if (run_pid_loop) {
     }
     
     run_pid(new_tof_data); // <------------ CALLED WITH BOOLEAN ----------
+    new_tof_data = false; // <------------- RESET THE BOOLEAN ------------
 }
 ```
 
@@ -324,13 +325,17 @@ kf_state_t glob_state;
 
 We are finally ready to run the robot with the Kalman Filter implemented. The implementation of the notification handler and calling of the Python commands are ommitted here for brevity; for more information, please consult any of my previous lab reports. Here is a video demonstrating that the PID controller is able to run while using the Kalman Filter estimates to calculate the error:
 
-**insert video here**
+<iframe width="560" height="315" src="https://www.youtube.com/embed/TddUeTAk0Rk?si=r0GyjvyfjXj5AX4M" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Below is a plot associated with this movement showing relevant data:
 
-**insert graph here**
+![kalman_filter_success_plots](images/lab7/kalman_filter_success_plots.png)
 
-We can see that the Kalman Filter is following the incoming ToF sensor data throughout the test, and is also predicting the evolution of the states of the robot with decent accuracy between ToF sensor updates. The following screenshot shows that the control loop is being run at a frequency much higher than ToF sensor data is being acquired, yet the Kalman Filter is allowing us to relatively smoothly (more so than linear extrapolation) capture the evolution of the robot state in the absence of new ToF data.
+We can see that the Kalman Filter is following the incoming ToF sensor data throughout the test, and is also predicting the evolution of the states of the robot with decent accuracy between ToF sensor updates. The following screenshot shows the length of the ToF sensor readings array and length of the control outputs array over the 3 seconds that this test was run:
+
+![kalman_filter_decoupled_loop_proof](images/lab7/kalman_filter_decoupled_loop_proof.png)
+
+This gives a ToF sensor data acquisition rate of a little less than 20 Hz, and a control loop frequency of a little over 200 Hz! This proves that the control loop is being run at a frequency much higher than ToF sensor data is being acquired, yet the Kalman Filter is allowing us to relatively smoothly (more so than linear extrapolation) capture the evolution of the robot state in the absence of new ToF data!
 
 ## Acknowledgements
 
