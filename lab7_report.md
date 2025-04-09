@@ -96,7 +96,92 @@ first = temp(1);
 tof_values_raw_adjust = temp - first;
 ```
 
+### Python Implementation
 
+Armed with our System Identification, we proceed to implement the Kalman Filter in Python to make sure that it works in "simulation" before implementing it on the physical hardware (the robot).
+
+Below is the Kalman Filter function in Python, copying the algorithm from lecture slides:
+
+```python
+def kf(mu, sigma, u, y, A, B, C, sig_u, sig_z, update):
+    mu_pred = A.dot(mu) + B.dot(u)
+    sigma_pred = A.dot(sigma.dot(A.T)) + sig_u
+
+    if update:
+        sigma_m = C.dot(sigma_pred.dot(C.T)) + sig_z
+        kkf_gain = sigma_pred.dot(C.T.dot(np.linalg.inv(sigma_m)))
+        y_m = y - C.dot(mu_pred)
+
+        mu = mu_pred + kkf_gain.dot(y_m)
+        sigma = (np.eye(2) - kkf_gain.dot(C)).dot(sigma_pred)
+
+        return mu, sigma
+    else:
+        return mu_pred, sigma_pred
+```
+
+Next, we run the Kalman filter on the data that we got from our Lab 5 run, to ensure that the Kalman Filter successfully follows the ToF data as it comes in, while also predicting the evolution of the state of the system between ToF updates. Here is the Python code to do this:
+
+```python
+end_time = ctrl_times[-1]
+kf_times = list()
+kf_output = list()
+kf_output_vel = list()
+curr_time = 0
+tof_arr_ix = 0
+ctrl_arr_ix = 0
+update = True
+
+# initial values
+sigma = np.array([[2**2, 0], [0, 5**2]])
+x = np.array([[0], [0]])
+
+tof_times[0] = 0 # set this so that the initial values will work correctly
+
+while curr_time < end_time:
+    # if we have a new ToF sensor value
+    if tof_arr_ix < len(tof_times) and tof_times[tof_arr_ix] <= curr_time:
+        update = True
+        tof_arr_ix += 1
+    else:
+        update = False
+
+    # calculate what the adjusted y-value should be
+    y_adjust = tof_initial - tof_values[tof_arr_ix - 1]
+    
+    # call kalman filter
+    x, sigma = kf(x, sigma, ctrl_outputs[ctrl_arr_ix], y_adjust, A, B, C, sig_u, sig_z, update)
+
+    # store values
+    kf_output.append(tof_initial - x[0][0])
+    kf_output_vel.append(0.0 - x[1][0])
+    kf_times.append(curr_time)
+
+    # increment time
+    curr_time = ctrl_times[ctrl_arr_ix]
+    ctrl_arr_ix += 1
+```
+
+Notice that because the Kalman filter belives that the state (mu) is in terms of distance from the start, we need to perform the transformation `y_adjust = tof_initial - tof_values[tof_arr_ix - 1]` and pass `y_adjust` into the `kf()` function. Later, when we store the output of the Kalman Filter, we need to transform it back by appending `tof_initial - x[0][0]` to the `kf_output` array. Running this code results in the following plot:
+
+![python_implementation](images/lab7/python_implementation.png)
+
+This shows quite good agreement between the ToF sensor values and the Kalman Filter output. We see that between ToF sensor updates, the Kalman Filter output is, for the most part, predicting the evolution of the state with decent accuracy. This shows that our system ID and initial covariance matrices are working as expected.
+
+#### Discussion of Initial Covariance Matrices
+
+To initialize the Kalman Filter, we need to set some initial covariance matrices. I defined them like so:
+
+```python
+sigma_1 = 2.0
+sigma_2 = 10.0
+sigma_3 = 7.0
+
+sig_u = np.array([[sigma_1**2, 0],[0, sigma_2**2]])
+sig_z = np.array([[sigma_3**2]])
+```
+
+`sigma_1` represents the square of the uncertainty (standard deviation) in the position at the start; I set it to 2 cm, which seemed reasonable to me because the ToF sensors are quite accurate and our model for the position of the robot is relatively accurate. `sigma_2` represents the square of the uncertainty in the velocity at the start. Though we are very certain that that velocity is 0 cm/s at the beginning, since the velocity is a calculated / derived variable, it is subject to a lot more noise, especially at the slow speeds the robot starts moving at. Therefore, I set this uncertainty to be quite high (10 cm/s), so that the Kalman Filter doesn't freak out when its velocity calculation yields a number far outside of its expected value. `sigma_3` is the square of the uncertainty of the sensor measurements as they come in. I started with a guess of 2 cm at first, and gradually increased it until I thought the prediction of the filter was smoothest and matched the incoming sensor data best. I didn't really have an intuitive explanation for why I chose 7 cm for this value.
 
 
 ## Acknowledgements
