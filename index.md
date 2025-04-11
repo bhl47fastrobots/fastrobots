@@ -44,3 +44,7 @@ Click on the images to navigate to the lab report!
 ## Lab 8 - Stunt
 
 [![lab8_thumbnail](images/lab8/lab8_thumbnail.jpeg)](./lab8_report.html "Lab 8 Report")
+
+## Lab 9 - Mapping
+
+[![lab8_thumbnail](images/lab9/lab9_thumbnail.png)](./lab9_report.html "Lab 9 Report")
