@@ -4,7 +4,7 @@ In this lab, we placed the robot in an environment and had it spin around to tak
 
 ## Lab Tasks
 
-### Small and Accurate Turns
+### Small and Accurate Turns (Control)
 
 First, we need to program the robot to accurately perform fourteen turns of 25 degrees each. We use our Lab 6 orientation control to accomplish this.
 
@@ -169,6 +169,8 @@ The reason the robot does not really spin around the axis was because my deadban
 
 It is clear that the robot is following the changing setpoint as it steps by 25 degrees every half a second!
 
+**REASON ABOUT ERROR DO NOT FORGET**
+
 ### Measure Distances
 
 We add a couple lines in the code from the previous section to actually take sensor data in the `MEASURE` state:
@@ -228,19 +230,19 @@ plt.show()
 
 Here are the resulting polar plots, which look pretty close to the expected results given the shape of the obstacles at those points!
 
-#### **Scan at (0, 3)**
+**Scan at (0, 3)**
 
 ![0_3_polar_plot](images/lab9/0_3_polar_plot.png)
 
-#### **Scan at (5, 3)**
+**Scan at (5, 3)**
 
 ![5_3_polar_plot](images/lab9/5_3_polar_plot.png)
 
-#### **Scan at (5, -3)**
+**Scan at (5, -3)**
 
 ![5_m3_polar_plot](images/lab9/5_m3_polar_plot.png)
 
-#### **Scan at (-3, -2)**
+**Scan at (-3, -2)**
 
 ![m3_m2_polar_plot](images/lab9/m3_m2_polar_plot.png)
 
@@ -248,7 +250,90 @@ This data looks pretty clean, so I elected not to spin twice to get more data po
 
 ### Merge and Plot Readings
 
-Transform data
+Looking at the direction of my rotation and the orientation of my robot at the start, we can intuit what the transformation matrix from polar coordinates to (x, y) coordinates is. For a given value of theta (in degrees), below is a table that gives the factors we need to multiply our distance sensor values by to get the x-y coordinates:
+
+| theta | x  | y  |
+|-------|----|----|
+| 0     | +1 | 0  |
+| +90   | 0  | -1 |
+| +180  | -1 | 0  |
+| +270  | 0  | +1 |
+
+This looks like x = r * cos(theta) and y = -r * sin(theta), or written as a transformation "matrix":
+
+<img src="https://latex.codecogs.com/svg.image?\begin{bmatrix}x\\y\end{bmatrix}=\begin{bmatrix}rcos(\theta)\\-rsin(\theta)\end{bmatrix}" title="\begin{bmatrix}x\\y\end{bmatrix}=\begin{bmatrix}rcos(\theta)\\-rsin(\theta)\end{bmatrix}" />
+
+Here is the Python code that calculates the transformation:
+
+```python
+x = list()
+y = list()
+
+for i in range(len(theta)):
+    x.append(distance_data[i] * np.cos(theta[i]) / (2.54 * 12))
+    y.append(-1.0 * distance_data[i] * np.sin(theta[i]) / (2.54 * 12))
+
+plt.figure()
+plt.scatter(x, y, marker='o')
+plt.xlabel('Distance in x (ft)')
+plt.ylabel('Distance in y (ft)')
+plt.title('Scan at (-3, -2)')
+plt.show()
+```
+
+Below are the resulting plots in a local Cartesian coordinate system that has the same orientation as the world's Cartesian coordinate system:
+
+![0_3_cartesian_plot](images/lab9/0_3_cartesian_plot.png)
+
+![5_3_cartesian_plot](images/lab9/5_3_cartesian_plot.png)
+
+![5_m3_cartesian_plot](images/lab9/5_m3_cartesian_plot.png)
+
+![m3_m2_cartesian_plot](images/lab9/m3_m2_cartesian_plot.png)
+
+Finally, we take these data points and move them to the world's Cartesian coordinate system by adding the coordinates of the center of rotation from which those points were taken to each of the (x, y) pairs. For example, for the scan taken from the point (0, 3), we added 0 to each x-coordinate and 3 to each y-coordinate in that set of data. Below is the python code to do this (each three-line segment was in separate Jupyter Notebook cells and was ran when the variables `x` and `y` contained the data corresponding to that point):
+
+```python
+# for (-3, -2) data
+x_m3_m2 = np.array(x) - 3.0
+y_m3_m2 = np.array(y) - 2.0
+
+####################
+# for (5, 3) data
+x_5_3 = np.array(x) + 5.0
+y_5_3 = np.array(y) + 3.0
+
+####################
+# for (0, 3) data
+x_0_3 = np.array(x)
+y_0_3 = np.array(y) + 3.0
+
+####################
+# for (5, -3) data
+x_5_m3 = np.array(x) + 5.0
+y_5_m3 = np.array(y) - 3.0
+```
+
+Finally, we plot these resulting data sets together, with the four colors representing points taken from the four scan points. Below is the Python code to make this plot:
+
+```python
+plt.figure()
+plt.scatter(x_m3_m2, y_m3_m2, c='b', marker='o')
+plt.scatter(x_5_3, y_5_3, c='g', marker='o')
+plt.scatter(x_0_3, y_0_3, c='m', marker='o')
+plt.scatter(x_5_m3, y_5_m3, c='c', marker='o')
+plt.scatter([-3, 5, 0, 5], [-2, 3, 3, -3], c='r', marker='x', label='Turn Locations')
+plt.xlabel('X coordinate (ft)')
+plt.ylabel('Y coordinate (ft)')
+plt.title('Merged Map, No Lines')
+plt.show()
+``` 
+
+Here is the resulting figure (red X's indicate the points from which we took scans):
+
+![map_no_lines](images/lab9/map_no_lines.png)
+
+We can see that it was able to resolve the walls really well, capture two points per edge of the square-shaped obstacle in the middle of the room, and resolve the small protrusion along the "bottom" wall closest to the (-3, -2) scan point!
 
 ### Convert to Line-Based Map
 
