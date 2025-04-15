@@ -169,7 +169,9 @@ The reason the robot does not really spin around the axis was because my deadban
 
 It is clear that the robot is following the changing setpoint as it steps by 25 degrees every half a second!
 
-**REASON ABOUT ERROR DO NOT FORGET**
+#### Error Discussion
+
+Since I use DMP, the drift in my yaw measurement is really low (we can neglect this)
 
 ### Measure Distances
 
@@ -291,7 +293,7 @@ Below are the resulting plots in a local Cartesian coordinate system that has th
 
 ![m3_m2_cartesian_plot](images/lab9/m3_m2_cartesian_plot.png)
 
-Finally, we take these data points and move them to the world's Cartesian coordinate system by adding the coordinates of the center of rotation from which those points were taken to each of the (x, y) pairs. For example, for the scan taken from the point (0, 3), we added 0 to each x-coordinate and 3 to each y-coordinate in that set of data. Below is the python code to do this (each three-line segment was in separate Jupyter Notebook cells and was ran when the variables `x` and `y` contained the data corresponding to that point):
+Finally, we take these data points and move them to the world's Cartesian coordinate system by adding the coordinates of the center of rotation from which those points were taken to each of the (x, y) pairs. For example, for the scan taken from the point (0, 3), we added 0 to each x-coordinate and 3 to each y-coordinate in that set of data. Below is the Python code to do this (each three-line segment was in separate Jupyter Notebook cells and was ran when the variables `x` and `y` contained the data corresponding to that point):
 
 ```python
 # for (-3, -2) data
@@ -337,7 +339,63 @@ We can see that it was able to resolve the walls really well, capture two points
 
 ### Convert to Line-Based Map
 
-Draw some lines hooray
+Next, I manually entered in coordinates for the walls and plotted them on my map. Here is the Python code I used:
+
+```python
+outer_wall_vertices_x = [-5.5, -5.5, -0.75, -0.75, 0.75, 2, 6.5, 6.5, -2.5, -2.5, -5.5]
+outer_wall_vertices_y = [0.5, -4.5, -4.5, -3, -3, -4.5, -4.5, 4.5, 4.5, 0.5, 0.5]
+
+box_vertices_x = [2.75, 4.25, 4.25, 2.75, 2.75]
+box_vertices_y = [-0.5, -0.5, 1.75, 1.75, -0.5]
+
+plt.figure()
+plt.scatter(x_m3_m2, y_m3_m2, c='b', marker='o')
+plt.scatter(x_5_3, y_5_3, c='g', marker='o')
+plt.scatter(x_0_3, y_0_3, c='m', marker='o')
+plt.scatter(x_5_m3, y_5_m3, c='c', marker='o')
+plt.scatter([-3, 5, 0, 5], [-2, 3, 3, -3], c='r', marker='x', label='Turn Locations')
+plt.plot(outer_wall_vertices_x, outer_wall_vertices_y, c='k')
+plt.plot(box_vertices_x, box_vertices_y, c='k')
+plt.xlabel('X coordinate (ft)')
+plt.ylabel('Y coordinate (ft)')
+plt.title('Merged Map, With Lines')
+plt.show()
+```
+
+After adjusting the arrays of vertices, we produce the following plot:
+
+![map_with_lines](images/lab9/map_with_lines.png)
+
+Lastly, we need to convert these vertex lists into lists of (x_start, y_start) and (x_end, y_end) as requested in the lab manual. I wrote the following Python code to do this:
+
+```python
+# now convert arrays of vertex x, y to (x_start, y_start) and (x_end, y_end)
+
+outer_wall_starts = []
+outer_wall_ends = []
+for i in range(len(outer_wall_vertices_x) - 1):
+    outer_wall_starts += [[outer_wall_vertices_x[i], outer_wall_vertices_y[i]]]
+    outer_wall_ends += [[outer_wall_vertices_x[i+1], outer_wall_vertices_y[i+1]]]
+
+print(outer_wall_starts)
+print(outer_wall_ends)
+
+box_starts = []
+box_ends = []
+
+for i in range(len(box_vertices_x) - 1):
+    box_starts += [[box_vertices_x[i], box_vertices_y[i]]]
+    box_ends += [[box_vertices_x[i+1], box_vertices_y[i+1]]]
+
+print(box_starts)
+print(box_ends)
+```
+
+Now the four variables `outer_wall_starts`, `outer_wall_ends`, `box_starts`, and `box_ends` are in the form requested in the lab manual. The screenshot below shows the output of the four `print` statements in the above code block:
+
+![lines_as_start_end](images/lab9/lines_as_start_end.png)
 
 ## Acknowledgements
 
+* Sophia Lin (lab partner, helping me tune my robot's turns)
+* Aravind Ramaswamy (helping me tune my robot's turns, discussing strategy for taking data points)
