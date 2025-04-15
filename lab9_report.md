@@ -6,9 +6,9 @@ In this lab, we placed the robot in an environment and had it spin around to tak
 
 ### Small and Accurate Turns
 
-First, we need to program the robot to do fourteen turns of 25 degrees each accurately. We use our Lab 6 orientation control to accomplish this.
+First, we need to program the robot to accurately perform fourteen turns of 25 degrees each. We use our Lab 6 orientation control to accomplish this.
 
-One issue that I ran into was because the DMP I was using in Lab 6 only outputs data in the range (-180, 180], whenever I turned across the boundary (-180 to +180), the robot would freak out and start spinning non-stop. This happened because as it crosses the -180/+180-degree boundary, the PID controller has a huge discontinuity in its measured value and, therefore, it's error too, causing the control action to saturate and the robot to go unstable. To remedy the problem, I added some code in the main `loop()` function to count how many times the DMP output wrapped since the movement started, which is used to adjust the DMP output by an integer multiple of 360 degrees before being logged. Below is the Arduino code, along with the global variables used:
+One issue that I ran into was because the DMP I was using in Lab 6 only outputs data in the range (-180, 180], whenever I turned across the boundary (-180 to +180), the robot would freak out and start spinning non-stop. This happened because as it crosses the -180/+180-degree boundary, the PID controller has a huge discontinuity in its measured value and, therefore, its error as well, causing the control action to saturate and the robot to unstable. To remedy the problem, I added some code in the main `loop()` function to count how many times the DMP output wrapped since the movement started, which is used to adjust the DMP output by an integer multiple of 360 degrees before being logged. Below is the Arduino code, along with the global variables used:
 
 ```cpp
 // *************** ADDED GLOBAL VARIABLES (on top of existing DMP variables) *********** //
@@ -76,7 +76,7 @@ if (run_pid_loop) {
 
 This code allowed me to use `imu_yaw[]` in my PID orientation controller as the measured value and not have to worry about the wrapping.
 
-Next, we add code to make the robot alternate turning and stopping (to take a measurement). I added a state `enum` at the top of the code which enumerated the different states that the robot could be in when the scan was run: `TURN` (we are turning), `MEASURE` (we are stopped and reading the ToF sensor), and `End`, which prevents the robot from continuing once it has finished rotating the full (nearly) 360 degrees. The logic to switch between the two, as well as the global variables and macros that make that happen, are listed below:
+Next, we add code to make the robot alternate turning and stopping (to take a measurement). I added a state `enum` at the top of the code which enumerated the different states that the robot could be in when the scan was run: `TURN` (we are turning), `MEASURE` (we are stopped and reading the ToF sensor), and `End`, which prevents the robot from continuing once it has finished rotating the full (nearly) 360 degrees. The logic to switch between the two, as well as the global variables and macros that make that happen, are shown below:
 
 ```cpp
 
@@ -171,7 +171,80 @@ It is clear that the robot is following the changing setpoint as it steps by 25 
 
 ### Measure Distances
 
-Get the data
+We add a couple lines in the code from the previous section to actually take sensor data in the `MEASURE` state:
+
+```cpp
+// if in measure state, take ToF data, store it, and then flip to turn state
+if (mvmt_state == MEASURE) {
+    // take ToF data ********************* HERE *********************
+    if (tof_arr_ix < 3) {
+        continue;
+    }
+    distance_data[turn_counter] = tof_data_two[tof_arr_ix - 1];
+    turn_counter++;
+
+    // if we are at the max angle, we're done
+    if (angle_setpoint == MAX_ANGLE) {
+        mvmt_state = END;
+    } else {
+        mvmt_state = TURN;
+    }
+    mvmt_state_start_time = millis();
+}
+```
+
+I also had to re-tune my PID controller and adjust the deadbands to get the robot to turn much more accurately. Here were the steps that allowed me to execute the turns well:
+
+* Lowered all of my gains to about 80% of the values that I had in Lab 6. Since in Lab 6, I had the robot turning roughly 90 degrees per turn, high gains were okay, but in this lab, we're turning only 25 degrees per turn; the high gains were causing it to overshoot and settle slower.
+* Defined separate deadbands for the left and right motors; I was experiencing some issues where one motor would turn while the other one wouldn't. To remedy this issue, I increased the deadband on the motor that wasn't turning until both motors were consistently starting and stopping simulataneously.
+* Lowered the deadband somewhat. I did this because I had some issues with the robot continuously oscillating about the setpoint. Since I'm adding my control output to my deadband and sending the result as the PWM value to the motors, if my deadband is too high, the PWM value to the motors will still be too high, and the robot won't slow down as it approaches the setpoint.
+* Increased my derivative LPF alpha value. Since my maximum step change in setpoint is 25 degrees instead of 90 degrees like in Lab 6, I can afford to trust the current value of the error more (derivative kick is less of an issue). This allows the motor to properly slow down as it approaches the setpoint without oscillating violently about it.
+
+After proper tuning, here is a video of the robot performing a scan at the (5, 3) point on the map. You can see that the turning performance is much improved from the first video:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/-JqtMzXyY0A?si=c8FlLIhaJBJbCC_p" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Once I have the ToF data returned and stored in the `distance_data` array on my computer in Python, I use the following code to generate the polar plot. I started my robot pointing along the +x axis (i.e. theta = 0 degrees corresponds to the +x axis), and then rotated clockwise. I **do** perform some pre-processing on the data to clean it up a little bit; by adding the distance between the center of rotation and the ToF of the robot (8 cm for me) and by rotating the whole plot by a constant offset to correct for errors in robot placement.
+
+```python
+# plot the data
+distance_data = [285.29, 282.79, 75.3, 94.5, 70.3, 66.8, 82.59, 81.59, 66.9, 69.3, 90.59, 73.8, 67.4, 222.0, 245.69]
+theta = np.linspace(0, 350.0, 15)
+theta *= (np.pi / 180.0)
+theta -= np.pi / 8.0
+
+# add the distance from the theoretical center of rotation to the ToF sensor
+# also convert the distance from cm to feet to prepare for data for merging
+for i in range(len(theta)):
+    distance_data[i] += 8.0
+    distance_data[i] /= (2.54 * 12)
+
+ax = plt.subplot(111, polar=True)
+ax.set_theta_zero_location("N")
+ax.set_theta_direction(-1)
+ax.plot(theta, distance_data, marker='o', linestyle = 'None', label = 'Distance by Angle')
+plt.show()
+```
+
+Here are the resulting polar plots, which look pretty close to the expected results given the shape of the obstacles at those points!
+
+#### **Scan at (0, 3)**
+
+![0_3_polar_plot](images/lab9/0_3_polar_plot.png)
+
+#### **Scan at (5, 3)**
+
+![5_3_polar_plot](images/lab9/5_3_polar_plot.png)
+
+#### **Scan at (5, -3)**
+
+![5_m3_polar_plot](images/lab9/5_m3_polar_plot.png)
+
+#### **Scan at (-3, -2)**
+
+![m3_m2_polar_plot](images/lab9/m3_m2_polar_plot.png)
+
+This data looks pretty clean, so I elected not to spin twice to get more data points.
 
 ### Merge and Plot Readings
 
