@@ -171,7 +171,36 @@ It is clear that the robot is following the changing setpoint as it steps by 25 
 
 #### Error Discussion
 
-Since I use DMP, the drift in my yaw measurement is really low (we can neglect this)
+For the following analysis, let's assume the following errors:
+
+* IMU data: negligible error, because of DMP
+* Robot spin accuracy: within +/- 2 degrees of the setpoint
+* ToF sensor accuracy: within +/- 3 cm at distances of around 2 meters (for a 4x4 empty room)
+* Size of robot spin increment: 25 degrees / turn
+
+The maximum error will occur at the corner, which is the farthest distance the robot needs to detect from the center of the 4x4 room. This distance is 2 * sqrt(2) = 2.83 meters. Suppose one of our increments aimed directly at this corner. Let's say the robot missed its setpoint by 2 degrees in either direction. Using some geometry, we can calculate that the distance that the robot actually sees:
+
+![max_error_diagram](images/lab9/max_error_diagram.png)
+
+Thus the actual distance from the center to the wall is:
+
+<img src="https://latex.codecogs.com/svg.image?\sqrt{1.87^2&plus;2^2}=2.74" title="\sqrt{1.87^2+2^2}=2.74" />
+
+Gien that the ToF sensor might be off by up to 3 cm at this distance, we get a maximum error of 2.83 - 2.74 + 0.03 = 0.12 meters, or **12 cm**. That's quite a lot!
+
+On average, the error will not be quite so large because being off by 2 degrees in either direction won't cause the wall distance to change so quickly. For the sake of brevity, let's perform the same calculation for the distance for which the error will be the smallest (when we are looking directly perpendicular to a wall) and take the average error to be the midpoint of these two (in reality, it will be slightly smaller than this value, but this is a rather complex calculation that is needlessly precise, given that our estimates for the errors that we use to start with are very hand-wavy already).
+
+Looking directly at a wall, being off by 2 degrees results in the following diagram:
+
+![min_error_diagram](images/lab9/min_error_diagram.png)
+
+Thus the actual distance from the center to the wall is:
+
+<img src="https://latex.codecogs.com/svg.image?\sqrt{2^2&plus;0.07^2}=2.001" title="\sqrt{2^2+0.07^2}=2.001" />
+
+This is basically no error (about a millimeter), which tells us that most of our possible error will be from the ToF sensor (around 3 cm). So the minimum error is around **3 cm**.
+
+**Thus, our average error is, to a very crude estimate, (12 cm + 3 cm) / 2 = 7.5 cm.**
 
 ### Measure Distances
 
@@ -208,7 +237,11 @@ After proper tuning, here is a video of the robot performing a scan at the (5, 3
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/-JqtMzXyY0A?si=c8FlLIhaJBJbCC_p" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Once I have the ToF data returned and stored in the `distance_data` array on my computer in Python, I use the following code to generate the polar plot. I started my robot pointing along the +x axis (i.e. theta = 0 degrees corresponds to the +x axis), and then rotated clockwise. I **do** perform some pre-processing on the data to clean it up a little bit; by adding the distance between the center of rotation and the ToF of the robot (8 cm for me) and by rotating the whole plot by a constant offset to correct for errors in robot placement.
+Once I have the ToF data returned and stored in the `distance_data` array on my computer in Python, I use the following code to generate the polar plot. I started my robot pointing along the +x axis (i.e. theta = 0 degrees corresponds to the +x axis), and then rotated clockwise. I **do** perform some pre-processing on the data to clean it up a little bit; by adding the distance between the center of rotation and the ToF of the robot (8 cm for me) and by rotating the whole plot by a constant offset to correct for errors in robot placement. Below is an annotated picture of the measurement from my ToF sensor to the robot's theoretical center of rotation:
+
+![8cm_tof_radius_annotate](images/lab9/8cm_tof_radius_annotate.png)
+
+And below is the code I used to plot my polar plot and do some basic preprocessing:
 
 ```python
 # plot the data
