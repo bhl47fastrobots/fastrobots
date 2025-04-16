@@ -47,4 +47,8 @@ Click on the images to navigate to the lab report!
 
 ## Lab 9 - Mapping
 
-[![lab8_thumbnail](images/lab9/lab9_thumbnail.png)](./lab9_report.html "Lab 9 Report")
+[![lab9_thumbnail](images/lab9/lab9_thumbnail.png)](./lab9_report.html "Lab 9 Report")
+
+## Lab 10 - Localization (Simulation)
+
+[![lab10_thumbnail](images/lab10/lab10_thumbnail.png)](./lab10_report.html "Lab 10 Report")
