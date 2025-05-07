@@ -12,6 +12,8 @@ First, we run the provided code to perform localization in simulation to make su
 
 ### Real Result
 
+#### C and Python Code Setup
+
 First, we upload the code from Lab 9 to the robot, with a small number of changes to get the robot to spin 18 times in increments of 20 degrees each, to round out the full 360 degrees. I also changed the direction of the scan from clockwise to counterclockwise. Here is the relevant code:
 
 ```cpp
@@ -147,3 +149,64 @@ cmdr.plot_gt((x * 12.0 * 2.54) / 100.0, (y * 12.0 * 2.54) / 100.0)
 
 ##############
 ```
+
+Notice that doing it this way, we need to put the acquired data into the `loc` object manually using a simple setter function that I wrote for this purpose:
+
+```python
+class BaseLocalization():
+    # .....
+    
+    # setter functions for obs_range_data and obs_bearing_data
+    def set_obs_data(self, obs_range_data, obs_bearing_data):
+        self.obs_range_data = obs_range_data
+        self.obs_bearing_data = obs_bearing_data
+```
+
+#### Physical Results
+
+Below is a video of the robot performing a localization scan at the (5, -3) scan location:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/P6aR9uQS4cE?si=Qa3pIXXj_Buht5kb" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+And here are the localization results for the four separate marked robot poses. For each pose, I have included 1) the ground truth (green) and predicted location (blue) of the robot on the 2D map provided; 2) a screenshot of the belief output by the Bayes filter as well as the probability the Bayes filter believes that the robot is in its output location; and 3) the ground truth location of the robot, converted to meters for easier direct comparison with the Bayes filter output.
+
+**(-3, -2) pose** (this localization was great, the two points are right on top of each other):
+
+![m3_m2_loc](images/lab11/m3_m2_loc.png)
+
+![m3_m2_bayes](images/lab11/m3_m2_bayes.png)
+
+![m3_m2_gt](images/lab11/m3_m2_gt.png)
+
+**(0, 3) pose** (this localization was also great, with the two points right on top of each other):
+
+![0_3_loc](images/lab11/0_3_loc.png)
+
+![0_3_bayes](images/lab11/0_3_bayes.png)
+
+![0_3_bt](images/lab11/0_3_gt.png)
+
+**(5, -3) pose** (this localization was also great, with the two points right on top of each other):
+
+![5_m3_loc](images/lab11/5_m3_loc.png)
+
+![5_m3_bayes](images/lab11/5_m3_bayes.png)
+
+![5_m3_bt](images/lab11/5_m3_gt.png)
+
+**(5, 3) pose** (this was the least accurate localization):
+
+![5_3_loc](images/lab11/5_3_loc.png)
+
+![5_3_bayes](images/lab11/5_3_bayes.png)
+
+![5_3_bt](images/lab11/5_3_gt.png)
+
+As you can clearly see, the localization algorithm and Bayes filter is extraordinarily accurate! The only localization that I wasn't able to get an accurate localization for was the (5, 3) pose, and I think it was because there are a lot of close walls in that area that might not be able to be read accurately by the ToF sensor in long mode.
+
+## Acknowledgements
+
+* Cheney Zhang (for keeping the lab open for me an extra 30 minutes or so to acquire the data)
+* Pengru Lung (for telling me what was good enough for the localization)
+* Katarina Duric (for giving me some pointers on common mistakes for when implementing the code)
+
