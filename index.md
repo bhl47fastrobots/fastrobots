@@ -52,3 +52,8 @@ Click on the images to navigate to the lab report!
 ## Lab 10 - Localization (Simulation)
 
 [![lab10_thumbnail](images/lab10/lab10_thumbnail.png)](./lab10_report.html "Lab 10 Report")
+
+## Lab 11 - Localization (Real)
+
+[![lab11_thumbnail](images/lab11/lab11_thumbnail.webp)](./lab11_report.html "Lab 11 Report")
+
