@@ -57,3 +57,6 @@ Click on the images to navigate to the lab report!
 
 [![lab11_thumbnail](images/lab11/lab11_thumbnail.webp)](./lab11_report.html "Lab 11 Report")
 
+## Lab 12 - Planning and Execution
+
+[![lab12_thumbnail](images/lab12/lab12_thumbnail.png)](./lab12_report.html "Lab 12 Report**")
