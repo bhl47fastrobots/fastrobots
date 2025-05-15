@@ -382,9 +382,87 @@ Localization was tried, but it was extremely slow. While the localization of the
 
 This turned out to be mostly accurate enough (on a full battery) to make it through the course and very fast.
 
+### Results
+
+Below are two videos showing two different points of view for the same successful run:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/px5algtHQ44?si=s1C5Fp4EdO_gjHtl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/MAmicSfJpic?si=aXGK_NOSLxYUXDUv" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Towards the end, the robot was actually doing pretty much the same thing each time despite not using localization, which affirmed our decision to not use localization due to its limited utility. The run shown here was simply the best of around 5 or 6 runs that each missed one or two waypoints by a tiny bit. This was the one run where the robot successfully drove over each waypoint.
+
+Below is the final Python routine:
+
+```python
+ble.send_command(CMD.SET_TUNING_CONSTS, "2.0|0.3|0.6|0.08|1.1|0.5|0.25|0.1")
+time.sleep(0.5)
+ble.send_command(CMD.SET_SETPOINTS, "0.0|-45.0|0|120|140")
+
+ble.send_command(CMD.START_PID_MVMT, "");
+time.sleep(1.5);
+
+ble.send_command(CMD.SET_SETPOINTS, "30.0|-45.0|0|40|40")
+time.sleep(1.0);
+ble.send_command(CMD.SET_SETPOINTS, "0.0|-45.0|0|40|40")
+time.sleep(0.5);
+
+ble.send_command(CMD.SET_SETPOINTS, "0.0|0.0|0|120|140")
+time.sleep(1);
+
+# toward box
+ble.send_command(CMD.SET_SETPOINTS, "30.0|0.0|0|40|40")
+time.sleep(0.8);
+ble.send_command(CMD.SET_SETPOINTS, "0.0|0.0|0|40|40")
+time.sleep(1);
+
+# turn down towards bottom wall
+ble.send_command(CMD.SET_SETPOINTS, "0.0|60.0|0|120|140")
+time.sleep(1);
+
+ble.send_command(CMD.SET_SETPOINTS, "35.0|60.0|1|40|40")
+time.sleep(2);
+
+ble.send_command(CMD.SET_SETPOINTS, "0.0|0.0|0|120|140")
+time.sleep(1);
+
+# to bottom right corner
+ble.send_command(CMD.SET_SETPOINTS, "40.0|0.0|1|40|40")
+time.sleep(2.0);
+
+ble.send_command(CMD.SET_SETPOINTS, "0.0|-88.0|0|120|140")
+time.sleep(1);
+
+# to top right corner
+ble.send_command(CMD.SET_SETPOINTS, "30.0|-88.0|0|40|40")
+time.sleep(1.8);
+ble.send_command(CMD.SET_SETPOINTS, "45.0|-88.0|1|40|40")
+time.sleep(1.0);
+
+ble.send_command(CMD.SET_SETPOINTS, "0.0|-179.0|0|120|140")
+time.sleep(1);
+
+# top middle
+ble.send_command(CMD.SET_SETPOINTS, "30.0|-179.0|0|40|40")
+time.sleep(1.0);
+ble.send_command(CMD.SET_SETPOINTS, "60.0|-179.0|1|40|40")
+time.sleep(1.5);
+
+ble.send_command(CMD.SET_SETPOINTS, "0.0|-270.0|0|120|140")
+time.sleep(1);
+
+# to end
+ble.send_command(CMD.SET_SETPOINTS, "30.0|-270.0|0|40|40")
+time.sleep(1.05)
+
+ble.send_command(CMD.STOP_PID_MVMT, "")
+```
+
+The first two straight drives are timed + orientation control. The drive towards the bottom corner at an angle and the drive towards the right wall are linear + orientation control. The drive up towards the top wall and the drive left toward the middle-left wall are a timed + orientation control period followed by linear + orientation control period (this is to reduce the speed of the robot as it approaches the walls from large distances). The last drive toward the origin is again just timed + orientation control.
+
 ## Acknowledgements
 
 * Prof. Helbling for setting up the second world towards the end of the lab time
-* Sophia Lin (lab partner)
+* Sophia Lin (lab partner, we worked together; routine programming, pair programming, suggesting methods to improve reliability of the routine)
 * Jeffery Cai and Adrienne Yoon (giving me some tips on how to go about doing the lab)
 
